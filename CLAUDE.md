@@ -47,6 +47,12 @@ belong here.
 
 ## Paths inside a skill
 
-When a skill shells out to its own bundled script, reference it via
-`${CLAUDE_PLUGIN_ROOT}` (resolves to the installed plugin location), never a
-hardcoded `~/.claude/...` or `/Users/...` path.
+When a skill shells out to its own bundled script, reference it by a
+**skill-relative variable** (e.g. `$SKILL_DIR`, the folder the skill's `SKILL.md`
+lives in) — never a hardcoded `~/.claude/...` or `/Users/...` path. Resolve that
+variable per install: `${CLAUDE_PLUGIN_ROOT}/skills/<name>` for a Claude Code
+plugin install, or the skill's own directory for `npx skills` / manual / other
+agents. This keeps skills runnable on any agent, not only Claude Code.
+
+A skill's **output** should go to the OS temp dir or into the analyzed project —
+never `~/.claude/...` (it confuses non-Claude users).
