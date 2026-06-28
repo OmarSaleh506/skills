@@ -29,6 +29,7 @@ No install step required — they're plain files.
 | Skill | Invocation | What it does |
 |---|---|---|
 | **[ai-os-init](./skills/ai-os-init/SKILL.md)** | model-invoked | Non-destructively scaffolds the five-layer "AI Operating System" structure into any project: `CLAUDE.md` (memory), `docs/` (architecture + ADR log + runbooks), `tools/`, and `.claude/` with example skills, hooks, and a docs-auditor subagent. Idempotent and safe to re-run. |
+| **[sqlalchemy-patterns](./skills/sqlalchemy-patterns/SKILL.md)** | model-invoked | The definitive SQLAlchemy 2.0+ reference (async · PostgreSQL): 2.0-style declarative models, relationships, eager-loading strategy, N+1 elimination, transactions, PostgreSQL types, and Alembic — with a 30-second cheatsheet, pre-query checklist, and troubleshooting table. |
 
 ### ai-os-init — what gets installed into your project
 
