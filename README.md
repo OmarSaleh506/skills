@@ -7,29 +7,36 @@ coding agent follows. They're packaged here as a
 for one-command install, but the skill files are portable and can be used by
 any agent that reads skill/instruction files.
 
-## Install (Claude Code)
+## Install
+
+**Any agent** (Claude Code, Codex, Cursor, OpenCode + 70 more) — via the
+[`skills`](https://skills.sh) installer:
+
+```bash
+npx skills add OmarSaleh506/skills            # pick skills + agents interactively
+npx skills add OmarSaleh506/skills -a codex   # e.g. install only to Codex
+```
+
+**Claude Code** — native plugin marketplace (one install pulls in every skill):
 
 ```text
 /plugin marketplace add OmarSaleh506/skills
 /plugin install omar-skills@skills
 ```
 
-One install gives you every skill in this collection. Each model-invoked skill
-then activates automatically when what you ask Claude to do matches its
+**Manual** — each skill is a self-contained folder under `skills/<name>/`; copy
+it into your agent's skills directory, or point the agent at its `SKILL.md`.
+
+Model-invoked skills then activate automatically when your request matches their
 description.
-
-## Use with other agents
-
-Each skill lives under `skills/<name>/`. Copy that folder into your agent's
-skills/instructions directory, or just point your agent at the `SKILL.md`.
-No install step required — they're plain files.
 
 ## Skills in this collection
 
-| Skill | Invocation | What it does |
+| Skill | Works in | What it does |
 |---|---|---|
-| **[ai-os-init](./skills/ai-os-init/SKILL.md)** | model-invoked | Non-destructively scaffolds the five-layer "AI Operating System" structure into any project: `CLAUDE.md` (memory), `docs/` (architecture + ADR log + runbooks), `tools/`, and `.claude/` with example skills, hooks, and a docs-auditor subagent. Idempotent and safe to re-run. |
-| **[sqlalchemy-patterns](./skills/sqlalchemy-patterns/SKILL.md)** | model-invoked | The definitive SQLAlchemy 2.0+ reference (async · PostgreSQL): 2.0-style declarative models, relationships, eager-loading strategy, N+1 elimination, transactions, PostgreSQL types, and Alembic — with a 30-second cheatsheet, pre-query checklist, and troubleshooting table. |
+| **[ai-os-init](./skills/ai-os-init/SKILL.md)** | Claude Code | Non-destructively scaffolds the five-layer "AI Operating System" structure into any project: `CLAUDE.md` (memory), `docs/` (architecture + ADR log + runbooks), `tools/`, and `.claude/` with example skills, hooks, and a docs-auditor subagent. (Sets up Claude Code's `.claude/` config, so it's Claude-specific.) |
+| **[sqlalchemy-patterns](./skills/sqlalchemy-patterns/SKILL.md)** | Any agent | The definitive SQLAlchemy 2.0+ reference (async · PostgreSQL): 2.0-style declarative models, relationships, eager-loading strategy, N+1 elimination, transactions, PostgreSQL types, and Alembic — with a 30-second cheatsheet, pre-query checklist, and troubleshooting table. |
+| **[system-flow-mapper](./skills/system-flow-mapper/SKILL.md)** | Any agent | Reads any codebase (no changes) and writes three deliverables to `docs/system-flow/`: a deep `SYSTEM_FLOW.md` technical map, a jargon-free offline HTML companion for non-technical readers, and an interactive offline HTML reference for engineers. Detects project type (backend, frontend, full-stack, Pulumi, Flux/GitOps, IaC). |
 
 ### ai-os-init — what gets installed into your project
 

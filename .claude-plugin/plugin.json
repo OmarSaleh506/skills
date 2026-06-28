@@ -1,7 +1,7 @@
 {
   "name": "omar-skills",
-  "description": "A growing collection of portable agent skills: ai-os-init (scaffold an AI Operating System project structure) and sqlalchemy-patterns (SQLAlchemy 2.0+ async/PostgreSQL reference).",
-  "version": "1.1.0",
+  "description": "A growing collection of portable agent skills: ai-os-init (scaffold an AI Operating System project structure), sqlalchemy-patterns (SQLAlchemy 2.0+ async/PostgreSQL reference), and system-flow-mapper (document any codebase's architecture and request flow).",
+  "version": "1.2.0",
   "author": {
     "name": "Omar Alwahiby",
     "url": "https://github.com/OmarSaleh506"
@@ -9,6 +9,6 @@
   "homepage": "https://github.com/OmarSaleh506/skills",
   "repository": "https://github.com/OmarSaleh506/skills",
   "license": "MIT",
-  "keywords": ["agent-skills", "claude-code", "scaffold", "ai-os", "sqlalchemy", "postgresql", "project-setup", "productivity"],
-  "skills": ["./skills/ai-os-init", "./skills/sqlalchemy-patterns"]
+  "keywords": ["agent-skills", "claude-code", "scaffold", "ai-os", "sqlalchemy", "postgresql", "architecture", "documentation", "project-setup", "productivity"],
+  "skills": ["./skills/ai-os-init", "./skills/sqlalchemy-patterns", "./skills/system-flow-mapper"]
 }

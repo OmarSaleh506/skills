@@ -1,0 +1,3 @@
+mermaid@10.9.3
+source: https://registry.npmjs.org/mermaid/-/mermaid-10.9.3.tgz (dist/mermaid.min.js)
+format: UMD (exposes global `mermaid`), works offline with mermaid.initialize({startOnLoad:true})
