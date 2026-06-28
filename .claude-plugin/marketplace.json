@@ -9,8 +9,8 @@
     {
       "name": "omar-skills",
       "source": "./",
-      "description": "A growing collection of portable agent skills: ai-os-init (scaffold an AI Operating System project structure), sqlalchemy-patterns (SQLAlchemy 2.0+ async/PostgreSQL reference), and system-flow-mapper (document any codebase's architecture and request flow).",
-      "skills": ["./skills/ai-os-init", "./skills/sqlalchemy-patterns", "./skills/system-flow-mapper"]
+      "description": "A growing collection of portable agent skills: ai-os-init (scaffold an AI Operating System project structure), sqlalchemy-patterns (SQLAlchemy 2.0+ async/PostgreSQL reference), system-flow-mapper (document any codebase's architecture and request flow), and shop-scout (compare prices, discounts, coupons & seller safety across online stores).",
+      "skills": ["./skills/ai-os-init", "./skills/sqlalchemy-patterns", "./skills/system-flow-mapper", "./skills/shop-scout"]
     }
   ]
 }
