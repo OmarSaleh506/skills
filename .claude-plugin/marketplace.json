@@ -9,8 +9,8 @@
     {
       "name": "omar-skills",
       "source": "./",
-      "description": "A growing collection of portable agent skills. Currently includes ai-os-init, which non-destructively scaffolds an AI Operating System project structure into any project.",
-      "skills": ["./skills/ai-os-init"]
+      "description": "A growing collection of portable agent skills: ai-os-init (scaffold an AI Operating System project structure) and sqlalchemy-patterns (SQLAlchemy 2.0+ async/PostgreSQL reference).",
+      "skills": ["./skills/ai-os-init", "./skills/sqlalchemy-patterns"]
     }
   ]
 }
