@@ -1,6 +1,6 @@
 ---
 name: sqlalchemy-patterns
-description: Comprehensive SQLAlchemy 2.0+ async + PostgreSQL patterns — declarative models, relationships, type-safe Mapped[ columns, querying, eager loading, transactions, and Alembic migrations. Use when working with SQLAlchemy; to write a model, declarative model, or ORM model; add a column, mapped_column, or Mapped[ annotation; define a relationship, foreign key, or index on a table; choose selectinload, joinedload, or load_only; configure an async session or call session.execute; fix N+1 queries; do a bulk insert or upsert; use JSONB or a PostgreSQL type; count rows; write a migration model; run a database query or ORM query; or figure out how to query.
+description: Comprehensive SQLAlchemy 2.0+ async + PostgreSQL patterns — declarative models, relationships, type-safe Mapped[ columns, querying, eager loading, transactions, and Alembic migrations. Use when working with SQLAlchemy; to write a model, declarative model, or ORM model; add a column, mapped_column, or Mapped[ annotation; define a relationship, foreign key, or index on a table; choose selectinload, joinedload, or load_only; configure an async session or call session.execute; fix N+1 queries; do a bulk insert or upsert; use JSONB or a PostgreSQL type; count rows; write a migration model; or write any SQLAlchemy query.
 ---
 
 # SQLAlchemy 2.0+ Patterns (Async · PostgreSQL)
@@ -572,9 +572,6 @@ order_count = (
     select(func.count(Order.id)).where(Order.user_id == User.id).scalar_subquery()
 )
 
-# Correlated subquery in WHERE
-stmt = select(User).where(User.id.in_(select(Order.user_id).where(Order.total > 100)))
-
 # EXISTS — prefer over IN for "has any" checks
 has_admin = await session.scalar(select(exists().where(Role.name == "admin")))
 
@@ -908,3 +905,4 @@ op.alter_column("user", "fullname", new_column_name="full_name")
 
 ### Changelog
 - 2026-06-17 — Initial version. Verified against SQLAlchemy 2.0 docs (release line 2.0.51). Covers Sections 1–18, cheatsheet, pre-query checklist, troubleshooting. Key verified corrections vs common mistakes: eager-load filtering uses `relationship.and_()` not `.where()`; `joinedload` collections require `.unique()`; core `Uuid` preferred over `pg.UUID`; `TypeDecorator.cache_ok=True` required; hybrid `.inplace.expression` for type-checker compliance.
+- 2026-06-28 — Packaged into the `omar-skills` marketplace: reworded the "Keeping This Skill Current" path to be install-agnostic, tightened the description triggers to stay SQLAlchemy-specific, and removed a contradictory `IN (subquery)` example in §10.
