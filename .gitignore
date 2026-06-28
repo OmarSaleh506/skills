@@ -4,3 +4,13 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Secrets / local env — never commit real keys (.env.example IS tracked)
+.env
+*.env
+!.env.example
+!*.env.example
+
+# Local self-hosted Firecrawl data/volumes (if any are bind-mounted)
+**/firecrawl-data/
+**/.firecrawl/

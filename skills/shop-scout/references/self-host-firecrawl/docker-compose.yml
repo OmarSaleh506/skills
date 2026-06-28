@@ -1,0 +1,114 @@
+# Self-hosted Firecrawl for shop-scout — standalone, prebuilt images (no source build).
+#
+#   docker compose up -d                 # start (pulls images on first run)
+#   export FIRECRAWL_API_URL=http://localhost:3002   # point shop-scout at it
+#   docker compose down                  # stop   (add -v to also wipe queue state)
+#
+# Health check:
+#   curl -s -X POST http://localhost:3002/v2/scrape \
+#     -H 'Content-Type: application/json' \
+#     -d '{"url":"https://example.com","formats":["markdown"]}'
+#
+# See README.md for sizing, the worker×2 scaling note, and troubleshooting.
+#
+# All service images are PINNED to digests last verified working 2026-06-29, for
+# reproducibility (Firecrawl restructures its self-host stack often, and the
+# `command:` overrides below depend on paths inside the image).
+#
+# How to bump a pin: `docker pull <image>:<tag>` (e.g. ghcr.io/firecrawl/firecrawl:latest,
+# also playwright-service, nuq-postgres, redis:alpine, rabbitmq:3-management), then
+# read each new digest with `docker inspect --format '{{index .RepoDigests 0}}' <image>`,
+# paste the @sha256 value below, re-test `docker compose up -d`, and update the date
+# above. If a new image changes the startup command, mirror Firecrawl's upstream
+# docker-compose.yaml `command:` here (see README troubleshooting).
+name: shop-scout-firecrawl
+
+x-common-env: &common-env
+  REDIS_URL: redis://redis:6379
+  REDIS_RATE_LIMIT_URL: redis://redis:6379
+  PLAYWRIGHT_MICROSERVICE_URL: http://playwright-service:3000/scrape
+  POSTGRES_HOST: nuq-postgres
+  POSTGRES_PORT: 5432
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: postgres
+  NUQ_RABBITMQ_URL: amqp://rabbitmq:5672
+  USE_DB_AUTHENTICATION: "false"
+  # Worker concurrency *per container*. Raise to scrape more listings in parallel
+  # (pairs with shop-scout's SHOP_PARALLEL).
+  NUM_WORKERS_PER_QUEUE: ${NUM_WORKERS_PER_QUEUE:-4}
+  BULL_AUTH_KEY: ${BULL_AUTH_KEY:-CHANGEME}
+  # OPTIONAL — set these to enable Firecrawl's server-side `json` structured
+  # extraction. Without them the self-host still returns clean markdown and your
+  # agent extracts price/discount/stock itself (the default shop-scout path).
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  MODEL_NAME: ${MODEL_NAME:-}
+
+services:
+  playwright-service:
+    image: ghcr.io/firecrawl/playwright-service@sha256:6359b0d9070f27400b4a9b615509be06919e40121fc1fdc42d4efeddf02653d2
+    environment:
+      PORT: 3000
+    networks: [backend]
+
+  redis:
+    image: redis@sha256:2afba59292f25f5d1af200496db41bea2c6c816b059f57ae74703a50a03a27d0  # redis:alpine
+    command: redis-server --bind 0.0.0.0
+    networks: [backend]
+
+  rabbitmq:
+    image: rabbitmq@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69  # rabbitmq:3-management
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  nuq-postgres:
+    image: ghcr.io/firecrawl/nuq-postgres@sha256:aed86f62858f29bd971abddcdeb301c12888098d2cf5d33c1ba42b053bc460f6
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    networks: [backend]
+
+  # API + an internal worker pool (NUM_WORKERS_PER_QUEUE). Listens on :3002.
+  api:
+    image: ghcr.io/firecrawl/firecrawl@sha256:4d122bc0e8d9ce9ba05d33e16110a4ca3c25919d986ec0200c26fcb8752b14ec
+    command: node dist/src/harness.js --start-docker
+    environment:
+      <<: *common-env
+      HOST: "0.0.0.0"
+      PORT: 3002
+      ENV: local
+    depends_on:
+      redis: { condition: service_started }
+      playwright-service: { condition: service_started }
+      rabbitmq: { condition: service_healthy }
+      nuq-postgres: { condition: service_started }
+    ports:
+      - "${PORT:-3002}:3002"
+    networks: [backend]
+
+  # Extra horizontal worker replicas. No container_name => safe to scale.
+  # deploy.replicas is honored by modern `docker compose up`; if yours ignores
+  # it, force it explicitly:  docker compose up -d --scale worker=2
+  worker:
+    image: ghcr.io/firecrawl/firecrawl@sha256:4d122bc0e8d9ce9ba05d33e16110a4ca3c25919d986ec0200c26fcb8752b14ec
+    command: node dist/src/services/queue-worker.js
+    environment:
+      <<: *common-env
+    depends_on:
+      redis: { condition: service_started }
+      playwright-service: { condition: service_started }
+      rabbitmq: { condition: service_healthy }
+      nuq-postgres: { condition: service_started }
+    deploy:
+      replicas: 2
+    networks: [backend]
+
+networks:
+  backend:
+    driver: bridge
