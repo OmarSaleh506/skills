@@ -1,6 +1,16 @@
 ---
 name: sqlalchemy-patterns
-description: Comprehensive SQLAlchemy 2.0+ async + PostgreSQL patterns — declarative models, relationships, type-safe Mapped[ columns, querying, eager loading, transactions, and Alembic migrations. Use when working with SQLAlchemy; to write a model, declarative model, or ORM model; add a column, mapped_column, or Mapped[ annotation; define a relationship, foreign key, or index on a table; choose selectinload, joinedload, or load_only; configure an async session or call session.execute; fix N+1 queries; do a bulk insert or upsert; use JSONB or a PostgreSQL type; count rows; write a migration model; or write any SQLAlchemy query.
+description: >-
+  Comprehensive SQLAlchemy 2.0+ async + PostgreSQL patterns — declarative
+  models, relationships, type-safe Mapped[ columns, querying, eager loading,
+  transactions, and Alembic migrations. Use when working with SQLAlchemy; to
+  write a model, declarative model, or ORM model; add a column, mapped_column,
+  or Mapped[ annotation; define a relationship, foreign key, or index on a
+  table; choose selectinload, joinedload, or load_only; configure an async
+  session or call session.execute; fix N+1 queries; do a bulk insert or upsert;
+  use JSONB or a PostgreSQL type; count rows; write a migration model; or write
+  any SQLAlchemy query. Not for SQLAlchemy 1.x, non-async (sync) codebases, or
+  non-PostgreSQL databases (MySQL, SQLite, etc.).
 ---
 
 # SQLAlchemy 2.0+ Patterns (Async · PostgreSQL)
