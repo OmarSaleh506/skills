@@ -121,18 +121,25 @@ exactly — they are what fix it:
    `SHOP_STORES`) — see `references/stores.md` — and search *scoped to those
    domains*: `site:noon.com OR site:amazon.sa OR … <product>`. One scoped search
    per product where possible.
-2. **One general fallback, only if thin.** If the scoped search returns fewer
-   than `SHOP_MAX_LISTINGS` distinct in-list sellers, run **exactly one**
-   unscoped search (`"<product> buy"`) to catch a seller you'd otherwise miss.
-   Do **not** keep firing extra searches to "find a cheaper one" — that is what
-   makes the seller set (and the winner) drift between runs.
+2. **One general fallback, only if thin — and defend against a flaky search.**
+   A search that returns **0 results is often a transient backend hiccup**, so
+   **retry it once** before believing it (the live `/search` layer genuinely
+   returns 0 then 10 for the same query seconds apart). If the scoped search
+   *still* yields fewer than `SHOP_MAX_LISTINGS` distinct in-list sellers, run
+   **exactly one** unscoped search (`"<product> buy"`). The candidate pool is the
+   **de-duplicated union** of the scoped search and that single fallback — a
+   transient empty response must never silently shrink the shortlist. Do **not**
+   keep firing extra searches to "find a cheaper one" — that is what makes the
+   seller set (and the winner) drift between runs.
 3. **De-duplicate by seller.** One listing per seller — the canonical product
    page. If a seller appears more than once, keep the first by the order below.
 4. **Fixed priority / tie-break order** (this is also the output row order):
    1. pinned `SHOP_STORES`, **in the order the user listed them**;
-   2. official / first-party listings (the brand's own store, or "sold by
-      <Store>" where the marketplace itself is the merchant);
-   3. all other sellers.
+   2. first-party listings — the store sells its **own** stock (a retailer like
+      Jarir or extra, or the brand's own store), **or** the marketplace itself
+      holds the buy box ("sold by <Store>");
+   3. all other sellers — including a **third-party** marketplace seller (e.g.
+      eKart on Noon), which is *not* first-party.
    Tier 1 is ordered by the user's pin order. Tiers 2 and 3 have no user-given
    order, so within each, sort by **domain alphabetically** — never by search
    rank or by price (both jitter run-to-run, and ordering by them is the bug).
@@ -150,6 +157,14 @@ extract just these fields: **price**, **list/original price**, **discount %**,
 **currency**, **in-stock**, **shipping cost / free-shipping threshold**, and the
 **seller/merchant name** (important on marketplaces like Noon/Amazon/AliExpress
 where third parties sell under one storefront).
+
+**Confirm product identity before you compare.** Each listing must be the *same
+model and variant* — capacity, size, edition (colour aside). A different SKU
+(e.g. a 24,000 mAh vs a 27,000 mAh power bank) is **not** the same product: note
+the mismatch in its row, don't merge it into the comparison as if identical.
+**Don't assume free shipping** either — if the page doesn't state shipping, mark
+it `n/a` and leave it out of effective price (an invented "free ship" silently
+understates what the user pays).
 
 Rank by **effective price = price − applicable coupon + shipping**, in a single
 currency. "Applicable" is the strict Step-4 sense — only a coupon classified
@@ -171,11 +186,16 @@ with a **one-line reason** and — always — the **reference link(s) the verdic
 based on** (Trustpilot / Reddit / scam report / the listing's own rating page) so
 the user can verify the risk rating themselves. A verdict with no source link is
 incomplete — never ship one. Base it on:
+- **On-listing seller signals — read these first; they're the most reliable.**
+  The seller's rating, number of ratings, and a small sample of the
+  **lowest-star reviews** (that's where fraud, fakes, and non-delivery show up) —
+  a few top and a few lowest, not all. On a marketplace, judge the **specific
+  third-party seller** holding the buy box, not just the storefront.
 - Reputation search: Trustpilot / Reddit / "<store or seller> scam / reviews /
-  complaints". One focused search is usually enough.
-- On-listing signals: seller rating, number of ratings, and a small sample of
-  the **lowest-star reviews** (that's where fraud, fakes, and non-delivery show
-  up) — read a few top and a few lowest, not all.
+  complaints". One focused search is usually enough — but **Trustpilot and Reddit
+  routinely antibot-block scrapers** (even self-host Firecrawl), so when the page
+  won't load, cite the search **snippet** (review count / score) rather than
+  dropping the source.
 - Heuristics: brand-new seller + far-below-market price + no ratings = ❌.
   Established marketplace, high rating, many reviews, official/brand store = ✅.
 
@@ -257,8 +277,9 @@ prices, no fabricated verdicts:
 - **Where to buy** — the candidate seller links you found (direct product URLs
   where you have them), as a plain list.
 - **Real prices obtained** — *only* prices you actually read, each labelled with
-  its source link. Got none? Say so: "no live prices could be read on this
-  backend."
+  its source link. A price from a comparison/aggregator site (KSAPrice, Pricena,
+  …) is **not** a store read: label it *indicative* and still link the store's
+  own page. Got none? Say so: "no live prices could be read on this backend."
 - **Seller-safety notes** — only verdicts you can back with a source link; skip
   the rest.
 
@@ -282,13 +303,13 @@ needed to **buy without re-searching**. Fill each column exactly per this schema
 
 | Column | Format (fill exactly like this) |
 |---|---|
-| **Store** | the actual seller / merchant name (not just the marketplace) |
+| **Store** | the storefront you'd buy from (Noon, Amazon.sa, Jarir, …); when a marketplace listing is sold by a third party, append the seller — `Noon (eKart)` |
 | **Price** | currency **+** amount, always — `SAR 349` (never a bare number) |
 | **Discount** | `-22%` only if the list price is known, else `n/a` (don't compute one you can't source) |
 | **Effective price** | `price − applicable coupon + shipping`, same currency, **bold** — `**SAR 312**` |
 | **Stock / Shipping** | stock enum + shipping; stock ∈ {`In stock`, `Low stock (N)`, `Out of stock`, `n/a`} |
 | **Coupon** | `CODE · savings · how to apply · conditions · classification · verify at checkout`, or `none found` |
-| **Seller trust** | enum + one-line reason + **source link**; trust ∈ {`✅ Trusted`, `⚠️ Mixed`, `❌ Risky`} — a verdict with no link is invalid |
+| **Seller trust** | enum + one-line reason + **source link**, judging the *actual seller* (the third-party merchant on a marketplace, not just the storefront); trust ∈ {`✅ Trusted`, `⚠️ Mixed`, `❌ Risky`} — a verdict with no link is invalid |
 | **Buy link** | direct **product-page** URL (deep link to the item), never the store homepage |
 
 **Rows appear in the Step-1 priority order** (pinned → first-party → others,
@@ -296,6 +317,14 @@ alphabetical within a tier) — **not** sorted by price. The cheapest option is
 named in the **recommendation line**, never by reordering the table. (Sorting a
 table by a price that jitters between runs is exactly what made past runs look
 different every time.)
+
+**The `Best buy` is the lowest effective price among IN-STOCK listings.** An
+out-of-stock row stays in the table (shown `Out of stock`) but can **never** be
+the recommended buy — recommending an item nobody can purchase is exactly the
+"stupid output" to avoid, and is also a determinism hole (the cheapest row flips
+in and out of stock). If a cheaper out-of-stock option exists, mention it as
+"cheaper if restocked." If **nothing** is in stock, say so plainly instead of
+naming a winner.
 
 #### Worked example 1 — single product
 
@@ -315,6 +344,10 @@ top row; it's named in the recommendation line, not by reordering the table:
 **Best buy: Amazon.sa — SAR 1,370.** Cheapest after the SAR 50 coupon, in stock, sold directly by Amazon.
 👉 Buy: https://www.amazon.sa/…/dp/…  ·  Coupon: `SAVE50` (paste in checkout "Promo code" box)  ·  Trust: ✅ Trusted ([source](https://www.amazon.sa/…/dp/…))
 ```
+
+> When a marketplace listing is sold by a third party, name the seller in the
+> Store cell — e.g. `Noon (eKart)` — and base its trust verdict on that seller.
+> (Every row above is first-party, so no seller suffix is needed.)
 
 #### Worked example 2 — a 3-item shopping list
 
@@ -346,9 +379,14 @@ from a hope into an enforced step:
 - [ ] **Per row** has all three of: a **price with a source**, a **trust verdict
       with a source link**, and a **direct product-page buy link**. A row missing
       any one is **dropped** — don't pad it with `n/a` and keep it.
-- [ ] **No invention** — every price, discount, stock value, trust verdict, and
-      coupon code traces to something you actually read. Can't source it → it's
-      not in the output.
+- [ ] **No invention** — every price, discount, stock value, **shipping**, trust
+      verdict, and coupon code traces to something you actually read. Can't source
+      it → it's not in the output (and **unsourced shipping is `n/a`, never assumed
+      free** — it feeds effective price).
+- [ ] **Best buy is buyable** — the recommended row is **in stock**; an
+      out-of-stock listing never wins (note it as "cheaper if restocked" instead).
+- [ ] **Same product** — every compared row is the same model/variant; a different
+      SKU is flagged, not silently merged.
 - [ ] **Coupons** — only **✅ applicable** codes are in effective price; `❔
       unknown` ones are FYI-only in the coupon column; no unverified stacking.
 - [ ] **Thin results** — if fewer than ~3 sellers survive the gate, say so plainly
