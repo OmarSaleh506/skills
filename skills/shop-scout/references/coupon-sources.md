@@ -57,9 +57,22 @@ site:almowafir.com <store>
 | Savings | `-15%` or `SAR 25 off` |
 | Conditions | first-order-only · min spend SAR 200 · electronics excluded · expires 2026-07-15 |
 | Source | link to where you found it |
+| Classification | `✅ applicable` / `❔ unknown` / `❌ not applicable` (see below) |
 | Status | **"verify at checkout"** (always) |
 
-Only fold a code into **effective price** if its conditions clearly match the
-basket (right category, meets minimum, not first-order-only when the user isn't
-new). Otherwise leave it in the coupon column as an FYI. Never stack codes you
-haven't confirmed can stack.
+## Classify before you fold a code into effective price
+
+This is the rule that keeps the recommended winner stable — a coupon you *can't
+actually use* must never lower a price. Apply the same test the SKILL's Step 4
+defines:
+
+- **✅ applicable** — *every* condition checks out: not expired, min-spend ≤ this
+  cart, category matches the product, and (if first-order-only) the user is
+  genuinely new. **Only these reduce effective price.**
+- **❔ unknown** — any one condition can't be verified (no expiry shown, unclear
+  minimum, "selected items" with no list). Keep it in the coupon column as an
+  FYI; never fold it into effective price.
+- **❌ not applicable** — a condition is known to fail. Drop it.
+
+**Stacking:** never stack codes. Apply a single code unless the store's own T&Cs
+state stacking is allowed — and then link that T&C in the source field.

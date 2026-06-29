@@ -60,10 +60,10 @@ Detect the backend in this exact order and announce which one you're using:
    Same endpoints as self-host, plus server-side structured (`json`) extraction.
    Subject to your plan's quota.
 3. **Else → built-in web search + fetch. Best-effort fallback only.**
-   Zero setup, but be honest about its limits: it hits bot walls and
-   JS-rendered prices on major retailers and often returns weak or partial
-   results. Use it, label the output as best-effort, and **suggest the
-   self-hosted setup** for anything price-sensitive.
+   Zero setup, but it hits bot walls and JS-rendered prices on major retailers
+   and can't reliably read live prices. On this backend you **do not print a
+   comparison table** — you output the **honest research summary** (see
+   **Output: decide the format first**) and point the user at Firecrawl.
 
 `SHOP_BACKEND` overrides detection: `auto` (default) | `firecrawl` (force
 Firecrawl; requires URL or key) | `builtin` (force native fetch).
@@ -111,13 +111,36 @@ For each product, do these four steps in order. Stay disciplined about tokens
 (see **Token-efficiency rules**) — search broadly, scrape narrowly, extract
 fields, never dump whole pages.
 
-### Step 1 — Find sellers
-Pick the store list from `SHOP_SCOPE` (+ any `SHOP_STORES`) — see
-`references/stores.md`. Run **one** search per product where possible:
-`"<product> buy"` (add `price` / store names when it sharpens results). Prefer
-scoping to the target stores (e.g. `site:noon.com OR site:amazon.sa <product>`),
-but also allow a general search so you don't miss a cheaper seller. Produce a
-shortlist of candidate listing URLs, capped at `SHOP_MAX_LISTINGS`.
+### Step 1 — Find sellers (deterministic selection)
+The seller set **and its order must be reproducible**: same inputs → same
+shortlist → same row order, every run. The friend who called this skill
+"different every time" was hitting an unstable seller set. Follow these rules
+exactly — they are what fix it:
+
+1. **Scoped search first.** Build the store list from `SHOP_SCOPE` (+ any
+   `SHOP_STORES`) — see `references/stores.md` — and search *scoped to those
+   domains*: `site:noon.com OR site:amazon.sa OR … <product>`. One scoped search
+   per product where possible.
+2. **One general fallback, only if thin.** If the scoped search returns fewer
+   than `SHOP_MAX_LISTINGS` distinct in-list sellers, run **exactly one**
+   unscoped search (`"<product> buy"`) to catch a seller you'd otherwise miss.
+   Do **not** keep firing extra searches to "find a cheaper one" — that is what
+   makes the seller set (and the winner) drift between runs.
+3. **De-duplicate by seller.** One listing per seller — the canonical product
+   page. If a seller appears more than once, keep the first by the order below.
+4. **Fixed priority / tie-break order** (this is also the output row order):
+   1. pinned `SHOP_STORES`, **in the order the user listed them**;
+   2. official / first-party listings (the brand's own store, or "sold by
+      <Store>" where the marketplace itself is the merchant);
+   3. all other sellers.
+   Tier 1 is ordered by the user's pin order. Tiers 2 and 3 have no user-given
+   order, so within each, sort by **domain alphabetically** — never by search
+   rank or by price (both jitter run-to-run, and ordering by them is the bug).
+5. **Cap deterministically.** After ordering, take the first `SHOP_MAX_LISTINGS`
+   and drop the rest. Don't reshuffle later.
+
+The result is a fixed, ordered shortlist of candidate listing URLs. Steps 2–4
+only *enrich* these rows — the **row set and order never change** after Step 1.
 
 → Firecrawl: `POST /search`. Built-in: your native web search.
 
@@ -128,9 +151,13 @@ extract just these fields: **price**, **list/original price**, **discount %**,
 **seller/merchant name** (important on marketplaces like Noon/Amazon/AliExpress
 where third parties sell under one storefront).
 
-Rank by **effective price = price − applicable coupon + shipping** (in one
-currency; convert if the scope mixes regions and note the rate). A nominally
-cheaper listing with paid shipping or no stock often loses.
+Rank by **effective price = price − applicable coupon + shipping**, in a single
+currency. "Applicable" is the strict Step-4 sense — only a coupon classified
+**✅ applicable** reduces effective price. If the scope mixes regions and you
+must convert, **pin one FX source and stamp it** — e.g. `FX: 1 USD = 3.75 SAR
+(google.com/finance, <date>)` — and use that one rate for the entire run, so the
+ranking can't flip on a second lookup. A nominally cheaper listing with paid
+shipping or no stock often loses.
 
 → Firecrawl: `POST /scrape` with `formats:["markdown"]`, `onlyMainContent:true`,
 and `location.country` set to the store's region (e.g. `SA`). On **cloud** you
@@ -155,18 +182,32 @@ incomplete — never ship one. Base it on:
 Never invent a verdict — if you couldn't find enough signal, say "insufficient
 data" rather than guessing.
 
-### Step 4 — Find coupons
-Hunt for codes that apply to the winning listing(s):
-- **Coupon aggregators** and **the store's own** first-order / newsletter / app
-  promos, plus **social media** (X/Twitter, Instagram bios, regional Telegram
-  channels). Sources + search patterns are in `references/coupon-sources.md`.
-For each code, print: the **copy-ready code**, **savings** (% or amount), **how
-to apply it** (e.g. paste into the cart/checkout "Promo code" / "Coupon Code or
-Gift Card" box; or "auto-applied via link"), **conditions** (first-order-only,
-minimum spend, category limits, expiry), and a literal **"verify at checkout"** —
-aggregator codes are frequently dead or conditional.
-Fold a *confidently applicable* coupon into the effective price; keep speculative
-ones in the coupon column only.
+### Step 4 — Find coupons (with a strict applicability test)
+Hunt for codes that apply to the shortlisted listing(s) via **coupon
+aggregators**, **the store's own** first-order / newsletter / app promos, and
+**social media** (X/Twitter, Instagram bios, regional Telegram channels). Sources
+and search patterns are in `references/coupon-sources.md`.
+
+**Classify every code before it can touch effective price** — this is what stops
+the winner from flipping on a coupon you can't actually use:
+
+- **✅ applicable** — *all* of: not expired, min-spend ≤ this cart, category
+  matches the product, and (if first-order-only) the user is actually new. Only
+  **applicable** codes are folded into effective price.
+- **❔ unknown** — any single condition can't be verified (no expiry shown,
+  unclear min-spend, "selected items" with no list). Show it in the coupon
+  column as an FYI; **never** fold it into effective price.
+- **❌ not applicable** — a condition is known to fail (expired, min-spend above
+  cart, wrong category, first-order-only for a returning user). Don't show it.
+
+For each code you show, print: the **copy-ready code**, **savings** (% or
+amount), **how to apply** (e.g. paste into the cart/checkout "Promo code" /
+"Coupon Code or Gift Card" box, or "auto-applied via link"), its **conditions**,
+its **classification**, and a literal **"verify at checkout"** — aggregator codes
+are frequently dead.
+
+**Stacking:** never assume two codes stack. Apply only one unless the store's own
+T&Cs state stacking is allowed — and then link that T&C.
 
 ---
 
@@ -181,52 +222,134 @@ pipeline per item concurrently if your runtime supports it, else sequentially.
 Higher parallelism is faster but burns tokens faster and trips rate limits
 sooner — say so if the user asks to crank it up.
 
-**Output for a list** = one comparison table per item **plus a consolidated cart
-summary**:
-- best store + coupon + effective price per item,
-- a **grand total** (best-of-each),
-- a **single-store bundle tip**: the one store that carries the most items —
-  buying there can save on shipping and may let a store-wide coupon stack. Show
-  its bundle total next to the best-of-each total so the trade-off is visible.
+**Output for a list** = one comparison table (or honest summary, per the gate
+below) per item, **plus a consolidated cart summary** with a grand total and a
+single-store bundle tip. The exact layout is pinned in **Worked example 2**
+under the output contract.
 
 ---
 
-**Action-ready is the whole point.** Every option *and* the final pick must carry
-everything the user needs to **buy without re-searching**:
-1. the **direct product-page URL** (deep link to the item to buy — never just the
-   store name);
-2. **price · discount · effective price**, plus **stock & shipping**;
-3. any coupon as a **copy-ready code** with **how/where to apply it** and its
-   **conditions** (+ "verify at checkout");
-4. the **seller-trust verdict with the reference link(s)** it's based on.
+## Output: decide the format first
 
-If a field is genuinely unavailable, write "n/a" — don't drop the column.
+Before writing anything, run the **data-floor gate**. It decides whether you've
+earned a comparison table or must degrade to an honest summary — this is the gate
+that stops shop-scout from ever printing a fake, made-up table:
 
-Per product, a markdown table, then a bolded recommendation:
+- **Built-in backend → always the honest summary, never a table.** Built-in fetch
+  can't reliably read prices off JS-heavy stores, so a table built on it would be
+  fiction. (This was the #1 reason past runs looked "stupid.")
+- **Firecrawl backend (self-host or cloud):** count the shortlisted listings from
+  Step 1. If **half or more** of them lack a *real* price **or** a *real* stock
+  value (blocked, `n/a`, or never loaded), degrade to the honest summary too.
+  Otherwise, print the **comparison table**.
+
+A short honest summary always beats a confident fake table.
+
+### A) Honest research summary (degraded mode)
+
+Use this whenever the gate says "no table." Be useful and truthful — no invented
+prices, no fabricated verdicts:
+
+- **What it is** — the product, plus any spec you actually pinned down.
+- **Where to buy** — the candidate seller links you found (direct product URLs
+  where you have them), as a plain list.
+- **Real prices obtained** — *only* prices you actually read, each labelled with
+  its source link. Got none? Say so: "no live prices could be read on this
+  backend."
+- **Seller-safety notes** — only verdicts you can back with a source link; skip
+  the rest.
+
+Then append the upgrade block **verbatim**. This is the one place it's defined —
+reuse it wherever the honest summary is shown:
+
+> **⚡ Want real price comparison? Enable Firecrawl** — built-in fetch is blocked
+> by big stores, so it can't read live prices.
+> - **Recommended — self-host (no account, no quota):** in
+>   `references/self-host-firecrawl/`, run `docker compose up -d`, then
+>   `export FIRECRAWL_API_URL=http://localhost:3002` and re-run shop-scout.
+> - **Or cloud (free tier):** create an account at <https://www.firecrawl.dev> →
+>   Dashboard → **API Keys** → copy the `fc-…` key →
+>   `export FIRECRAWL_API_KEY=fc-…` and re-run shop-scout.
+
+### B) Comparison table contract (only when the data floor is met)
+
+This layout is a **contract, not a suggestion** — same columns, same order, every
+run. Don't add, drop, reorder, or rename columns. Every row carries everything
+needed to **buy without re-searching**. Fill each column exactly per this schema:
+
+| Column | Format (fill exactly like this) |
+|---|---|
+| **Store** | the actual seller / merchant name (not just the marketplace) |
+| **Price** | currency **+** amount, always — `SAR 349` (never a bare number) |
+| **Discount** | `-22%` only if the list price is known, else `n/a` (don't compute one you can't source) |
+| **Effective price** | `price − applicable coupon + shipping`, same currency, **bold** — `**SAR 312**` |
+| **Stock / Shipping** | stock enum + shipping; stock ∈ {`In stock`, `Low stock (N)`, `Out of stock`, `n/a`} |
+| **Coupon** | `CODE · savings · how to apply · conditions · classification · verify at checkout`, or `none found` |
+| **Seller trust** | enum + one-line reason + **source link**; trust ∈ {`✅ Trusted`, `⚠️ Mixed`, `❌ Risky`} — a verdict with no link is invalid |
+| **Buy link** | direct **product-page** URL (deep link to the item), never the store homepage |
+
+**Rows appear in the Step-1 priority order** (pinned → first-party → others,
+alphabetical within a tier) — **not** sorted by price. The cheapest option is
+named in the **recommendation line**, never by reordering the table. (Sorting a
+table by a price that jitters between runs is exactly what made past runs look
+different every time.)
+
+#### Worked example 1 — single product
+
+Backend: self-host. `SHOP_STORES="noon.com,amazon.sa"`, scope `saudi`. Rows are
+in priority order — pinned stores first **in the pinned order** (Noon, then
+Amazon.sa), then others alphabetically (Jarir). Note the winner is **not** the
+top row; it's named in the recommendation line, not by reordering the table:
 
 ```
-### <product>  — backend: <self-host | cloud | built-in (best-effort)>
-| Store | Price | Discount | Effective price | Stock / Shipping | Coupon (code · savings · how to apply · conditions) | Seller trust (+source) | Buy link |
+### Sony WH-1000XM5 — backend: self-host
+| Store | Price | Discount | Effective price | Stock / Shipping | Coupon | Seller trust | Buy link |
 |---|---|---|---|---|---|---|---|
-| Noon | SAR 349 | -22% | **SAR 349** | In stock · free ship | `NEW15` · -15% · paste in cart "Coupon Code" box · first order, min SAR 200 · verify at checkout | ⚠️ Mixed ([Trustpilot](https://www.trustpilot.com/review/noon.com)) | [open product](https://www.noon.com/…/p/…) |
-| … |
+| Noon | SAR 1,399 | -13% | **SAR 1,399** | In stock · free ship | none found | ✅ Trusted — major KSA marketplace, 4.5★ / 12k ratings ([Trustpilot](https://www.trustpilot.com/review/noon.com)) | [open product](https://www.noon.com/…/p/…) |
+| Amazon.sa | SAR 1,420 | n/a | **SAR 1,370** | In stock · free ship | `SAVE50` · -SAR 50 · paste in checkout "Promo code" box · no min spend · ✅ applicable · verify at checkout | ✅ Trusted — sold & shipped by Amazon.sa ([listing](https://www.amazon.sa/…/dp/…)) | [open product](https://www.amazon.sa/…/dp/…) |
+| Jarir | SAR 1,449 | n/a | **SAR 1,449** | Low stock (3) · free ship | none found | ✅ Trusted — established KSA retail chain ([Trustpilot](https://www.trustpilot.com/review/jarir.com)) | [open product](https://www.jarir.com/…) |
 
-**Best buy: <store> — <effective price>.** <one-line why (cheapest after coupon, trusted, in stock)>
-👉 Buy: <direct product URL>  ·  Coupon: `CODE` (apply in <where>)  ·  Trust: <verdict> (<source link>)
+**Best buy: Amazon.sa — SAR 1,370.** Cheapest after the SAR 50 coupon, in stock, sold directly by Amazon.
+👉 Buy: https://www.amazon.sa/…/dp/…  ·  Coupon: `SAVE50` (paste in checkout "Promo code" box)  ·  Trust: ✅ Trusted ([source](https://www.amazon.sa/…/dp/…))
 ```
 
-For a list, follow the per-item tables with:
+#### Worked example 2 — a 3-item shopping list
+
+Each item gets its own table as in example 1 (omitted here for brevity), then a
+single consolidated cart:
 
 ```
 ## Cart summary
 | Item | Best store | Effective price | Coupon (copy-ready) | Seller trust (+source) | Buy link |
-| … |
-**Grand total (best of each): <total>**
-**Bundle tip: <store> carries N/M items → <bundle total>** (one shipment; store-wide code may stack) — bundle link if available.
+|---|---|---|---|---|---|
+| Sony WH-1000XM5 | Amazon.sa | SAR 1,370 | `SAVE50` | ✅ Trusted ([src](https://www.amazon.sa/…)) | [buy](https://www.amazon.sa/…/dp/…) |
+| Logitech MX Master 3S | Noon | SAR 349 | none found | ✅ Trusted ([src](https://www.trustpilot.com/review/noon.com)) | [buy](https://www.noon.com/…/p/…) |
+| Anker 737 power bank | Amazon.sa | SAR 379 | none found | ✅ Trusted ([src](https://www.amazon.sa/…)) | [buy](https://www.amazon.sa/…/dp/…) |
+
+**Grand total (best of each): SAR 2,098**
+**Bundle tip: Amazon.sa carries 2 / 3 items → SAR 1,749 for those two** (one shipment; a store-wide code *may* stack — verify at checkout). Buy Sony + Anker from Amazon.sa, Logitech from Noon.
 ```
 
-Every row's **Buy link** is the direct product page. Use the local currency of
-the scope; if mixing regions, normalize to one currency and note the rate.
+Use the local currency of the scope; if mixing regions, normalize to the one
+pinned FX rate (Step 2) and show it once.
+
+### Pre-output validation gate (run this before you print)
+
+Walk this checklist — it's a hard gate, not advice. It converts "don't invent"
+from a hope into an enforced step:
+
+- [ ] **Format** — did the data-floor gate pass? If not, you're printing the
+      honest summary, not a table.
+- [ ] **Per row** has all three of: a **price with a source**, a **trust verdict
+      with a source link**, and a **direct product-page buy link**. A row missing
+      any one is **dropped** — don't pad it with `n/a` and keep it.
+- [ ] **No invention** — every price, discount, stock value, trust verdict, and
+      coupon code traces to something you actually read. Can't source it → it's
+      not in the output.
+- [ ] **Coupons** — only **✅ applicable** codes are in effective price; `❔
+      unknown` ones are FYI-only in the coupon column; no unverified stacking.
+- [ ] **Thin results** — if fewer than ~3 sellers survive the gate, say so plainly
+      ("only N sellers had readable prices") so the user knows it's partial.
 
 ---
 
@@ -246,15 +369,13 @@ the scope; if mixing regions, normalize to one currency and note the rate.
 
 ## Feasibility honesty (tell the user the truth)
 
-Steps 2 (live prices) and 4 (coupons/social) are **best-effort**, especially on
-built-in fetch. Bot walls, JS-rendered prices, gated X/Twitter access, and
-SEO-spam coupon sites full of dead codes are *normal*, not bugs. So:
-
-- **Show source links and never invent** a price, discount, stock status, seller
-  rating, or coupon code. If you couldn't get a field, write "n/a" and say why.
-- **End every coupon with "verify at checkout."**
-- If you're on built-in and prices look blocked or stale, **say so** and
-  recommend the self-hosted Firecrawl setup (it materially improves Step 2).
+Steps 2 (live prices) and 4 (coupons/social) are **best-effort**. Bot walls,
+JS-rendered prices, gated X/Twitter access, and SEO-spam coupon sites full of
+dead codes are *normal*, not bugs. The **data-floor gate** and **pre-output
+validation gate** above are how this skill stays honest about that: when the data
+isn't there, it degrades to a research summary instead of inventing a table, and
+it never ships a price, verdict, or code it couldn't source. Every coupon still
+ends with "verify at checkout."
 
 ## Be a good web citizen
 
