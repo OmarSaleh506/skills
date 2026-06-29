@@ -50,19 +50,25 @@ it into your agent's skills directory, or point the agent at its `SKILL.md`.
 
 ## See it work — shop-scout
 
-shop-scout with a real scraping backend (self-hosted Firecrawl), comparison-shopping
-one product. Rows are in a fixed priority order; the winner is called out
-separately, so the same query gives the same table every run:
+A **real** shop-scout run on self-hosted Firecrawl (prices as observed 2026-06-29).
+Rows hold a fixed priority order, so two runs of the same query match. The winner is
+the cheapest **in-stock** listing — the two cheaper rows are out of stock, so
+shop-scout won't recommend them — and coupons it can't verify are labelled, never
+silently folded into the price:
 
 ```text
-### Sony WH-1000XM5 — backend: self-host
-| Store     | Price     | Discount | Effective price | Stock / Shipping     | Coupon                                   | Seller trust                                  | Buy link       |
-|-----------|-----------|----------|-----------------|----------------------|------------------------------------------|-----------------------------------------------|----------------|
-| Noon      | SAR 1,399 | -13%     | **SAR 1,399**   | In stock · free ship | none found                               | ✅ Trusted — major KSA marketplace (Trustpilot)| [open product] |
-| Amazon.sa | SAR 1,420 | n/a      | **SAR 1,370**   | In stock · free ship | `SAVE50` · -SAR 50 · ✅ applicable · verify | ✅ Trusted — sold & shipped by Amazon.sa       | [open product] |
-| Jarir     | SAR 1,449 | n/a      | **SAR 1,449**   | Low stock (3)        | none found                               | ✅ Trusted — established KSA chain (Trustpilot) | [open product] |
+### Logitech MX Master 3S — backend: self-host
+| Store                 | Price      | Disc. | Effective  | Stock / Shipping      | Coupon          | Seller trust                            | Buy  |
+|-----------------------|------------|-------|------------|-----------------------|-----------------|-----------------------------------------|------|
+| Noon (eKart)          | SAR 449.00 | n/a   | SAR 449.00 | Low stock (5) · free  | none applicable | ✅ Trusted — eKart 4.8★/87% (listing)   | open |
+| Amazon.sa (ALOTHAIBI) | SAR 499.00 | -8%   | SAR 499.00 | In stock · Amazon-FBA | none applicable | ⚠️ Mixed — 3rd-party, no rating (seller)| open |
+| extra                 | SAR 299.00 | -47%  | SAR 299.00 | Out of stock          | none applicable | ✅ Trusted — eXtra 4.6★/1523 (listing)  | open |
+| Jarir                 | SAR 379.00 | n/a   | SAR 379.00 | Out of stock          | none found      | ⚠️ Mixed — only a product rating read   | open |
 
-Best buy: Amazon.sa — SAR 1,370. Cheapest after the SAR 50 coupon, in stock, sold directly by Amazon.
+Best buy (cheapest IN-STOCK): Noon — SAR 449.00.
+extra (SAR 299) and Jarir (SAR 379) are cheaper but OUT OF STOCK, so they can't win;
+Amazon.sa is in stock but pricier. Aggregator coupon codes were unverifiable, so none
+were applied. (Run again and the same four rows come back in the same order.)
 ```
 
 Without a scraping backend, shop-scout does **not** invent a table — it returns an
@@ -70,9 +76,9 @@ honest research summary (real links + any prices it could actually read) plus a
 one-step guide to enabling Firecrawl. See the
 [skill](./skills/shop-scout/SKILL.md) for the backend tiers.
 
-> _Illustrative sample output (links shortened for the README). The format above
-> is the locked output contract the skill produces; a recorded GIF/screencast of
-> a live run is a planned nice-to-have._
+> _Captured from a live self-host run; links and a few cells shortened for width.
+> This is the locked output contract the skill produces — a recorded GIF/screencast
+> is a planned nice-to-have._
 
 ## What `ai-os-init` scaffolds
 
