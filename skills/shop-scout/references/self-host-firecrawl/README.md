@@ -103,6 +103,12 @@ docker compose down -v     # also remove volumes (queue state) — use for a cle
   ```
 - **API never answers on :3002** — check `docker compose logs api`; ensure
   rabbitmq became *healthy* first (`docker compose ps`). The api waits on it.
+- **`api` shows `Exited (1)` with `Port 3002 did not become available within
+  60000ms`** — on a cold or loaded machine the Firecrawl harness can overrun its
+  60-second window to bind the internal API. The heavy deps (postgres, rabbitmq,
+  playwright, redis, workers) stay up, so just restart the api alone:
+  `docker compose up -d api` — it binds on the second try (allow ~90s warmup),
+  then health-check again.
 - **Port 3002 already in use** — set a different host port:
   `PORT=3010 docker compose up -d` and use `http://localhost:3010`.
 - **Scrapes are slow / time out** — the first scrape after boot warms the
