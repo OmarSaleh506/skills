@@ -238,10 +238,13 @@ that stops shop-scout from ever printing a fake, made-up table:
 - **Built-in backend → always the honest summary, never a table.** Built-in fetch
   can't reliably read prices off JS-heavy stores, so a table built on it would be
   fiction. (This was the #1 reason past runs looked "stupid.")
-- **Firecrawl backend (self-host or cloud):** count the shortlisted listings from
-  Step 1. If **half or more** of them lack a *real* price **or** a *real* stock
-  value (blocked, `n/a`, or never loaded), degrade to the honest summary too.
-  Otherwise, print the **comparison table**.
+- **Firecrawl backend (self-host or cloud):** a price comparison is only
+  meaningful if you actually read prices. Count the shortlisted listings from
+  Step 1: if **half or more** have **no real price** (blocked, `n/a`, or never
+  loaded), degrade to the honest summary. Otherwise, print the **comparison
+  table**. (Stock and shipping *enrich* the table but don't gate it — a missing
+  stock value just becomes `n/a` in its column; only missing **prices** sink the
+  table, because price is the whole comparison.)
 
 A short honest summary always beats a confident fake table.
 
