@@ -13,7 +13,9 @@ description: >-
   structure", "scaffold the AI-OS layers", "add CLAUDE.md hooks subagents to
   this project", "set up the Claude Code layers", "initialize ai-os", "add the
   AI operating system structure", "scaffold this project for Claude Code", or
-  "add skills hooks agents here". Safe to re-run — idempotent.
+  "add skills hooks agents here". Safe to re-run — idempotent. Not for
+  non–Claude-Code agents (it scaffolds Claude Code's .claude/ layer) and not a
+  code generator — it sets up project structure, not application code.
 ---
 
 # ai-os-init

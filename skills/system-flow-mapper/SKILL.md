@@ -16,7 +16,9 @@ description: >-
   or "onboard me to this codebase" — across frontend, backend, full-stack, or
   infrastructure-as-code repositories, even if they don't name these files
   explicitly. Prefer this skill over ad-hoc exploration whenever the goal is a
-  durable architecture/flow document plus a plain-language companion.
+  durable architecture/flow document plus a plain-language companion. Not for
+  modifying code (it is read-only — it only writes docs under docs/system-flow/)
+  and not a substitute for runtime profiling or live debugging.
 ---
 
 # System Flow Mapper
