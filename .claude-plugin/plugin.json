@@ -1,7 +1,7 @@
 {
   "name": "omar-skills",
   "description": "A growing collection of portable agent skills: ai-os-init (scaffold an AI Operating System project structure), sqlalchemy-patterns (SQLAlchemy 2.0+ async/PostgreSQL reference), system-flow-mapper (document any codebase's architecture and request flow), and shop-scout (compare prices, discounts, coupons & seller safety across online stores).",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": {
     "name": "Omar Alwahiby",
     "url": "https://github.com/OmarSaleh506"
