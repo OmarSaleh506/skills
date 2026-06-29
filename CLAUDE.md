@@ -40,10 +40,29 @@ user-invoked one.
 
 ## Before adding anything
 
-This repo is public. Follow the audit checklist in
-[CONTRIBUTING.md](CONTRIBUTING.md) — no secrets, no machine-/work-specific
-details, no hardcoded absolute paths. Infra- or employer-specific skills do not
-belong here.
+This repo is **public** — anything merged is visible forever (git history
+outlives deletion). Audit every skill before adding it; never commit one that
+contains secrets or machine-/work-specific details. Verify:
+
+- **No secrets** — no API keys, tokens, passwords, connection strings, or `.env`
+  contents anywhere (including example snippets).
+- **No personal/work identifiers** — no internal hostnames, cluster/tenant names,
+  account IDs, real emails, employer-specific service names, or private URLs.
+- **No machine-specific absolute paths** — use `${CLAUDE_PLUGIN_ROOT}`, `~`, or
+  relative paths. Never hardcode `/Users/<you>/...`.
+- **Degrades gracefully** — if a skill needs a tool beyond Python 3 / bash, it
+  must skip rather than fail, and say so in its `SKILL.md`.
+- **Generic, not internal** — solves a problem anyone could have; infra- or
+  employer-specific tooling belongs in a private repo, not here.
+
+A quick local scan before committing:
+
+```bash
+grep -rniE "api[_-]?key|secret|token|password|/Users/|@.*\.(com|io|sa)" skills/
+```
+
+CI also runs gitleaks on every push/PR as a backstop — not a substitute for the
+review above.
 
 ## Paths inside a skill
 

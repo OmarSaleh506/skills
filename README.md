@@ -63,12 +63,6 @@ touched:
 hooks self-skip when the underlying tool (ruff, prettier, tsc, mypy, …) isn't
 installed, so nothing breaks.
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Because this repo is **public**, every
-skill is audited for secrets, credentials, and machine-/work-specific details
-before it's added.
-
 ## License
 
 [MIT](LICENSE)
