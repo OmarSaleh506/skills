@@ -78,6 +78,11 @@ A ready-made wrapper, `$SKILL_DIR/scripts/firecrawl.sh`, auto-detects self-host
 vs cloud from the same env vars and works from any agent that can run a shell
 command.
 
+> **Other agents (Codex, Cursor, Gemini CLI, …):** nothing here is Claude-specific.
+> Map "web search" and "fetch a URL" to whatever your runtime offers, run
+> `$SKILL_DIR/scripts/firecrawl.sh` through your shell tool (needs only `curl`),
+> and if you can't run sub-agents just process items sequentially.
+
 > **`$SKILL_DIR`** — this skill's own directory (the folder containing this
 > `SKILL.md`, `references/`, and `scripts/`). Resolve it per install: on a Claude
 > Code plugin install it's `${CLAUDE_PLUGIN_ROOT}/skills/shop-scout`; for an
@@ -174,8 +179,13 @@ must convert, **pin one FX source and stamp it** — e.g. `FX: 1 USD = 3.75 SAR
 ranking can't flip on a second lookup. A nominally cheaper listing with paid
 shipping or no stock often loses.
 
+For **cross-border** listings (foreign currency, VAT, import duty, delivery time)
+and for judging whether a struck-through "was" price is a **real discount**, see
+`references/buying-notes.md`. Add only *sourced* fees to effective price.
+
 → Firecrawl: `POST /scrape` with `formats:["markdown"]`, `onlyMainContent:true`,
-and `location.country` set to the store's region (e.g. `SA`). On **cloud** you
+`maxAge:0` (so a cached page never shows a stale price), and `location.country`
+set to the store's region (e.g. `SA`). On **cloud** you
 may add a `json` extraction format to get the fields back structured in one call
 (see `references/firecrawl-usage.md`). On **self-host without an LLM key**, the
 `json` format is unavailable — scrape markdown and extract the fields yourself.
@@ -431,6 +441,8 @@ one. Don't use this to bypass paywalls, logins, or anti-bot measures.
 
 - `references/firecrawl-usage.md` — how to call Firecrawl (search/scrape/interact,
   params, response shapes, cloud vs self-host). **Read before your first call.**
+- `references/buying-notes.md` — cross-border costs (currency, VAT, duty,
+  delivery) and the "is this a real discount?" check.
 - `references/stores.md` — Saudi + global starter store lists (editable);
   how `SHOP_SCOPE` and `SHOP_STORES` combine.
 - `references/coupon-sources.md` — coupon aggregators + first-order &
