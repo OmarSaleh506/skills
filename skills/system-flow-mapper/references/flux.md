@@ -40,6 +40,11 @@ production, and how does a change get promoted?"
 - **Promotion path**: how a change moves staging → production (image automation,
   separate paths/branches, PR-based promotion, version bumps). Look for Flux image
   automation (`ImageRepository`/`ImagePolicy`/`ImageUpdateAutomation`).
+- **API versions**: the `apiVersion` of each Flux CRD. Beta versions (e.g.
+  `helm.toolkit.fluxcd.io/v2beta1`) are deprecated once a stable version ships and
+  are removed later; current stable are `helm.toolkit.fluxcd.io/v2`,
+  `source.toolkit.fluxcd.io/v1`, `image.toolkit.fluxcd.io/v1`. Flag leftovers as tech
+  debt (do not run `flux migrate`; it modifies files).
 - **Secrets**: SOPS/sealed-secrets/external-secrets usage; flag anything plaintext.
 - **Security smells** (see checklist).
 
@@ -119,6 +124,7 @@ Cite the manifest and say which environment(s) it affects:
 - **Privileged workloads** — `privileged: true`, `hostNetwork`/`hostPath`, running
   as root, missing securityContext, no resource limits.
 - **Image hygiene** — `:latest` tags, unpinned charts, public/untrusted registries.
+- **Deprecated Flux API versions** — any `v1beta*`/`v2beta*` `apiVersion`.
 - **Reconciliation risk** — `prune: false` masking drift, no health checks,
   unbounded intervals.
 

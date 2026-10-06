@@ -19,7 +19,8 @@ app-area if it's a single-role tool.
   and any global providers (auth context, query client, theme, i18n, state store).
 - **Route map**: every route — path, the page/component it renders, and its access
   control (public vs auth-gated vs role-gated). Note how gating is implemented
-  (route guard component, loader, middleware) — and whether it actually works.
+  (route guard component, loader, middleware; in Next.js 16+ the
+  `middleware` file convention is renamed `proxy`, so look for `proxy.ts` too) — and whether it actually works.
 - **Data layer**: how the app talks to the backend — the API client(s) (axios/
   fetch wrappers), base URLs/env vars, auth header injection, and whether there's a
   shared instance, response interceptors, and 401/refresh handling.

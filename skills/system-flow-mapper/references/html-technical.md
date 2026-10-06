@@ -330,7 +330,7 @@ python3 $SKILL_DIR/scripts/build_html.py \
 ```
 
 The script accepts `--shell` to override the default plain-language shell. The
-resulting file is ~3.3MB (Mermaid inlined). It works fully offline.
+resulting file is ~5.5MB (Mermaid inlined). It works fully offline.
 
 ---
 

@@ -21,7 +21,9 @@ per-role sections by them. Fold structurally-identical roles together and note i
 
 ## Phase 1 inventory (what to gather before the STOP)
 
-- **Entry point & global pipeline**: bootstrap file; global prefix; the ordered
+- **Entry point & global pipeline**: bootstrap file (for FastAPI, the `lifespan`
+  context manager on `FastAPI(...)` is the current startup/shutdown hook; the
+  `@app.on_event` decorators are deprecated and are ignored when `lifespan` is set); global prefix; the ordered
   chain every request passes through (middleware → auth → authorization →
   validation → handler → serialization → error handling). Note the response
   envelope shape and the error/exception mapping.

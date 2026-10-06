@@ -62,7 +62,7 @@ python3 $SKILL_DIR/scripts/build_html.py \
   --title   "How <Project> Works, In Plain Language"
 ```
 
-The script inlines the pinned Mermaid bundle and the CSS shell → one ~3.3MB
+The script inlines the pinned Mermaid bundle and the CSS shell → one ~5.5MB
 self-contained file. Never paste the Mermaid bundle yourself.
 
 ## Diagram palette (use these classDefs)
