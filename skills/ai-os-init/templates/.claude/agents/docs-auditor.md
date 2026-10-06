@@ -1,7 +1,7 @@
 ---
 name: docs-auditor
 description: Audits docs/ against the current codebase to detect documentation drift — stale paths, outdated tech-stack descriptions, missing ADRs for new patterns, and runbooks referencing removed commands. Read-only. Use when asked to "audit the docs", "check if docs are up to date", "find documentation drift", "verify docs match the code", or "what docs are stale".
-tools: Glob, Grep, LS, Read, TodoWrite
+tools: Read, Grep, Glob, TodoWrite
 model: sonnet
 color: purple
 ---

@@ -4,7 +4,7 @@ description: >-
   Audits and refactors existing test files for quality — removes brittle
   assertions, fixes implementation coupling (mocking internals), improves
   test names, eliminates duplication, and enforces behavior-over-implementation
-  testing. Does NOT write new tests (use /tdd for that). Use when asked to
+  testing. Does NOT write new tests — use a TDD workflow for that. Use when asked to
   "clean up the tests", "improve test quality", "fix brittle tests", "refactor
   the test suite", "tests keep breaking on refactor", "tests are a mess", or
   "make the tests better".

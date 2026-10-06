@@ -24,10 +24,10 @@ Scaffolds the five-layer AI Operating System structure into any project
 directory. **Non-destructive by design**: existing files are never touched,
 hook entries are never duplicated, source trees are never imposed.
 
-**No dependencies** — needs only Python 3 and bash, both already present on any
-machine running Claude Code. The hooks that call formatters or type checkers
-(ruff, prettier, tsc, mypy, …) degrade silently when those tools aren't
-installed, so nothing ever breaks.
+**No dependencies** — needs only Python 3 and bash. The hooks that call
+formatters or type checkers (ruff, prettier, tsc, mypy, …) skip silently when
+those tools aren't installed, and every hook allows the action (fails open) if
+`python3` itself is missing, so nothing ever breaks.
 
 ## The Five Layers It Wires Up
 
@@ -43,38 +43,56 @@ installed, so nothing ever breaks.
 
 | Hook | Event | What it does |
 |---|---|---|
-| `guard-secrets.sh` | PreToolUse (Edit/Write) | **Blocks** writes to secret-looking files (.env, keys, credentials) |
-| `branch-guard.sh` | PreToolUse (Bash) | **Blocks** force-push and direct commit/push to protected branches; runs CI before push |
+| `guard-secrets.sh` | PreToolUse (Edit/Write) | **Blocks** writes to secret-looking files (.env, keys, credentials); allows `.env.example`-style templates |
+| `branch-guard.sh` | PreToolUse (Bash) | **Blocks** force-push (`--force-with-lease` allowed) and commit/push to protected branches; runs local checks before push |
 | `auto-format.sh` | PostToolUse (Edit/Write) | Formats the edited file (ruff/black/prettier/gofmt/rustfmt), best-effort |
-| `typecheck.sh` | PostToolUse (Edit/Write) | Surfaces type errors (tsc/mypy) if the project is configured for them |
-| `n+1-guard.sh` | PostToolUse (Edit/Write) | Warns on likely N+1 query patterns (DB call inside a loop) |
+| `typecheck.sh` | PostToolUse (Edit/Write) | Feeds type errors (tsc/mypy) back to Claude if the project is configured for them |
+| `n+1-guard.sh` | PostToolUse (Edit/Write) | Warns Claude about likely N+1 query patterns (DB call inside a loop) |
 | `audit-log.sh` | PostToolUse (Bash) | Silently appends every bash command to `.claude/command-audit.log` |
+
+How they talk to Claude (per the [hooks reference](https://code.claude.com/docs/en/hooks)):
+blocking hooks exit `2` with the reason on **stderr**; advisory PostToolUse hooks
+print JSON `hookSpecificOutput.additionalContext`, because plain stdout from a
+PostToolUse hook only reaches the debug log. Commands are registered as
+`bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/<name>.sh"` so they keep working after
+Claude `cd`s into a subdirectory.
 
 > Two of these change git/agent behaviour out of the box: **`branch-guard.sh`**
 > will block commits on `main/master/develop/staging/production` and force
 > pushes, and **`audit-log.sh`** logs every command. Tell your team these are
-> active, or drop the hooks you don't want from `templates/.claude/hooks/`
-> before sharing.
+> active. The audit log can capture secrets typed into commands — keep
+> `.claude/command-audit.log` in `.gitignore` (the scaffold reminds you if it
+> isn't).
 
 ## How to Run
 
-Tell Claude to run the scaffold on the current project:
+`$SKILL_DIR` is the folder this `SKILL.md` lives in —
+`${CLAUDE_PLUGIN_ROOT}/skills/ai-os-init` for a plugin install, or the skill's
+own directory for a manual / `npx skills` install.
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/ai-os-init/scaffold.py"
-# or for a specific path:
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/ai-os-init/scaffold.py" /path/to/project
+python3 "$SKILL_DIR/scaffold.py" --dry-run   # preview: lists what would be created/merged, writes nothing
+python3 "$SKILL_DIR/scaffold.py"             # scaffold the current directory
+python3 "$SKILL_DIR/scaffold.py" /path/to/project
 ```
 
-Report the created/skipped/merged summary to the user.
+If the user seems unsure, or the project already has a `.claude/` setup, run
+`--dry-run` first and show them the list before writing anything. Afterwards,
+report the created / merged / skipped summary to the user, and mention that
+new hooks show up in `/hooks` (or after a restart).
 
 ## Non-Destructive Contract
 
 - **File exists →** skip it, report it as "already present"
 - **File missing →** create it from the template
 - **`.claude/settings.json` →** load and merge; append each hook entry **only
-  if** a hook with the same command isn't already there — then write back
-  preserving all existing keys
+  if** no existing hook already runs that script (matched on
+  `.claude/hooks/<name>.sh`, so entries from older versions aren't duplicated)
+  — then write back preserving every existing key and hook. A new file also
+  gets the `$schema` line for editor autocomplete. If the file can't be parsed,
+  it is left untouched and the merge is skipped.
+- **Dangling symlink at a target path →** treated as present; never written
+  through
 - **`CLAUDE.md` exists →** leave it byte-identical; note which recommended
   sections are absent so the user can fill them in
 - **No `src/` imposed** — if the project has `src/`, `lib/`, or `app/` but
@@ -88,7 +106,8 @@ After running, guide the user through:
 3. Try `new-adr`: say "create an ADR about [decision]"
 4. Try `clean-tests`: say "clean up the tests"
 5. Try `docs-auditor`: say "audit the docs"
-6. `guard-secrets` is already active — it blocks writes to secret-looking files
+6. `guard-secrets` and `branch-guard` are active — edit the pattern list /
+   `PROTECTED` set at the top of each script to fit the project
 
 ## Template Source
 
