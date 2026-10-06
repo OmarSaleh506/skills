@@ -1,64 +1,67 @@
 #!/usr/bin/env bash
-# guard-secrets — PreToolUse hook
+# guard-secrets — PreToolUse hook (matcher: Edit|Write|MultiEdit)
 #
-# Blocks Edit / Write / MultiEdit tool calls that target files whose paths
-# look like they may contain secrets (env files, private keys, credentials).
+# Blocks writes to files whose names look like they hold secrets: env files,
+# private keys, credential stores, kubeconfigs. Example/template files such as
+# .env.example or credentials.sample.json are allowed — they're meant to be
+# committed.
 #
-# Wired via .claude/settings.json:
-#   hooks.PreToolUse[].matcher  = "Edit|Write|MultiEdit"
-#   hooks.PreToolUse[].hooks[].command = "bash .claude/hooks/guard-secrets.sh"
+# Contract (https://code.claude.com/docs/en/hooks):
+#   stdin  : {"tool_name": "Edit", "tool_input": {"file_path": "/abs/path", ...}, ...}
+#   exit 0 : allow
+#   exit 2 : block — stderr is shown to Claude as the reason
 #
-# Exit codes:
-#   0 = allow (Claude proceeds with the tool call)
-#   2 = block (Claude sees stdout as the reason; tool call is cancelled)
-#
-# Claude Code passes the tool-call JSON on stdin:
-#   {"tool_name": "Edit", "tool_input": {"file_path": "/path/to/file", ...}}
+# Fails open (allows) if python3 is missing or the input can't be parsed.
 
-# Capture stdin first (it's consumed once — save before piping)
-INPUT=$(cat)
+command -v python3 >/dev/null 2>&1 || exit 0
 
-# Python parses JSON and checks patterns (Python 3 is always available)
-printf '%s' "$INPUT" | python3 -c "
-import json, re, sys
+HOOK_INPUT=$(cat) python3 - <<'PY'
+import json
+import os
+import re
+import sys
 
 try:
-    data = json.load(sys.stdin)
-except Exception:
-    sys.exit(0)  # malformed input — fail open (allow)
+    data = json.loads(os.environ.get("HOOK_INPUT", ""))
+except ValueError:
+    sys.exit(0)
 
-tool_input = data.get('tool_input') or {}
-path = tool_input.get('file_path') or tool_input.get('path') or ''
-
+tool_input = data.get("tool_input") or {}
+path = tool_input.get("file_path") or tool_input.get("path") or ""
 if not path:
-    sys.exit(0)  # no file path in this tool call — allow
+    sys.exit(0)
 
-# Patterns that indicate secret/credential files.
-# Add more patterns here as your project needs them.
-SECRET_PATTERNS = [
-    r'\.env(\b|\.|/)',            # .env  .env.local  .env.production
-    r'(^|[/\\\\])secrets[/\\\\]', # any secrets/ directory segment
-    r'\.pem\$',                   # TLS/SSL private keys
-    r'\.key\$',                   # generic private keys
-    r'\.p12\$', r'\.pfx\$',       # PKCS12 keystores
-    r'credentials',               # credentials.json, aws_credentials, etc.
-    r'\.secret(\b|\.)',           # .secret  app.secret.json  etc.
-    r'id_rsa\$', r'id_ed25519\$', r'id_ecdsa\$',  # SSH private keys
-    r'kubeconfig',                # Kubernetes config files
-    r'\.htpasswd\$',              # HTTP basic-auth password files
+name = os.path.basename(path).lower()
+segments = [s.lower() for s in re.split(r"[/\\]", path)]
+
+# Committed placeholders, not real secrets.
+ALLOWED_SUFFIXES = (".example", ".sample", ".template", ".dist", ".md")
+for suffix in ALLOWED_SUFFIXES:
+    if name.endswith(suffix) or f"{suffix}." in name:
+        sys.exit(0)
+
+# (reason, test) — tests run on the lowercased basename unless noted.
+SECRET_RULES = [
+    ("env file", lambda: name == ".env" or name.startswith(".env.") or name.endswith(".env")),
+    ("private key / keystore", lambda: name.endswith((".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"))),
+    ("SSH private key", lambda: re.fullmatch(r"id_(rsa|dsa|ecdsa|ed25519)", name) is not None),
+    ("credentials file", lambda: re.fullmatch(r"credentials(\.(json|ya?ml|xml|ini|toml))?", name) is not None),
+    ("secret file", lambda: re.fullmatch(r"(.*[._-])?secrets?(\.(json|ya?ml|toml|ini|txt|env|conf))?", name) is not None),
+    ("secrets/ directory", lambda: "secrets" in segments[:-1]),
+    ("kubeconfig", lambda: name.startswith("kubeconfig") or segments[-2:] == [".kube", "config"]),
+    ("htpasswd file", lambda: name == ".htpasswd"),
+    ("netrc / pgpass", lambda: name in (".netrc", ".pgpass")),
 ]
 
-for pat in SECRET_PATTERNS:
-    if re.search(pat, path, re.IGNORECASE):
-        print(f'🔐 guard-secrets: Blocked write to suspected secret file.')
-        print(f'   Path:    {path}')
-        print(f'   Pattern: {pat}')
-        print()
-        print('   To allow this write, either:')
-        print('   a) Remove the matching pattern from .claude/hooks/guard-secrets.sh')
-        print('   b) Disable the hook in .claude/settings.json (remove the entry)')
-        sys.exit(2)  # 2 = block / deny
+for reason, matches in SECRET_RULES:
+    if matches():
+        print(
+            f"guard-secrets: blocked write to {path} (looks like a {reason}).\n"
+            "Secrets don't belong in files Claude edits. Ask the user to make this change "
+            "themselves, or remove the rule from .claude/hooks/guard-secrets.sh if it's a false positive.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
-sys.exit(0)  # allow
-"
-exit ${PIPESTATUS[1]}
+sys.exit(0)
+PY

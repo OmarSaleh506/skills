@@ -1,106 +1,167 @@
 #!/usr/bin/env bash
-# PreToolUse — fires before Bash
+# branch-guard — PreToolUse hook (matcher: Bash)
 #
-# Guards (in order):
-#  1. Block force push
-#  2. Block direct push/commit to protected branches (main/master/develop/staging/production)
-#  3. Pre-push: warn if branch has > 1 commit — keep one focused commit per branch
-#  4. Pre-push: run local CI checks so the remote workflow doesn't fail
+# Before Claude runs a shell command, blocks:
+#   1. force pushes (--force, -f, +refspec). --force-with-lease is allowed.
+#   2. pushes that target a protected branch (explicit refspec, or a bare
+#      `git push` / `git push origin HEAD` while on one).
+#   3. commits made while a protected branch is checked out.
+# and, for any other push, runs the project's local checks first so a red CI
+# run is caught before it leaves the machine:
+#   `make check` | npm scripts "lint"/"typecheck" | `ruff check` + `ruff format --check`
+#
+# Contract (https://code.claude.com/docs/en/hooks):
+#   exit 0 : allow      exit 2 : block — stderr is shown to Claude as the reason
+#
+# Edit PROTECTED below to match your branching model. Fails open (allows) if
+# python3 is missing or the input can't be parsed.
 
-INPUT=$(cat)
-CMD=$(printf '%s' "$INPUT" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print((d.get('tool_input') or {}).get('command', ''))
-" 2>/dev/null)
+command -v python3 >/dev/null 2>&1 || exit 0
 
-[ -z "$CMD" ] && exit 0
+HOOK_INPUT=$(cat) python3 - <<'PY'
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
 
-PROTECTED_RE='main|master|develop|staging|production'
+PROTECTED = {"main", "master", "develop", "staging", "production"}
+CHECK_TIMEOUT_SECONDS = 540  # stays under Claude Code's 600 s hook timeout
+TAIL_LINES = 40
+GIT_OPTS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 
-# ── 1. Block force push ──────────────────────────────────────────────────────
-if printf '%s' "$CMD" | grep -qE 'git push.*(--force|-f )'; then
-  echo "🛡️  branch-guard: Blocked force push."
-  echo "   Only use --force-with-lease if you genuinely need it, and explain why."
-  exit 2
-fi
 
-# ── 2. Block direct push to protected branches ──────────────────────────────
-if printf '%s' "$CMD" | grep -qE "git push[^|&;]*\\b($PROTECTED_RE)\\b"; then
-  BRANCH=$(printf '%s' "$CMD" | grep -oE "\\b($PROTECTED_RE)\\b" | head -1)
-  echo "🛡️  branch-guard: Blocked direct push to '$BRANCH'."
-  echo "   Open a PR from your feature branch instead."
-  exit 2
-fi
+def block(message):
+    print(f"branch-guard: {message}", file=sys.stderr)
+    sys.exit(2)
 
-# ── 3. Block commit directly on a protected branch ──────────────────────────
-if printf '%s' "$CMD" | grep -qE '^[[:space:]]*git commit'; then
-  CURRENT=$(git branch --show-current 2>/dev/null)
-  if printf '%s' "$CURRENT" | grep -qE "^($PROTECTED_RE)$"; then
-    echo "🛡️  branch-guard: Blocked commit directly on '$CURRENT'."
-    echo "   Create a feature branch: git checkout -b feat/your-change"
-    exit 2
-  fi
-fi
 
-# ── 4. Pre-push: single-commit warning + CI checks ──────────────────────────
-if printf '%s' "$CMD" | grep -qE 'git push'; then
+def git_invocations(command):
+    """Yield (repo_dir_or_None, subcommand, args) for each `git` call in a command line."""
+    for segment in re.split(r"&&|\|\||[;|\n&]", command):
+        try:
+            tokens = shlex.split(segment)
+        except ValueError:
+            tokens = segment.split()
+        names = [os.path.basename(t) for t in tokens]
+        if "git" not in names:
+            continue
+        rest = tokens[names.index("git") + 1:]
+        repo_dir = None
+        while rest and rest[0].startswith("-"):
+            opt = rest.pop(0)
+            if opt in GIT_OPTS_WITH_VALUE and rest:
+                value = rest.pop(0)
+                if opt == "-C":
+                    repo_dir = value
+        if rest:
+            yield repo_dir, rest[0], rest[1:]
 
-  # 4a. Warn if branch has more than one commit ahead of base
-  BASE=""
-  for b in main master develop staging; do
-    if git rev-parse --verify "origin/$b" >/dev/null 2>&1; then
-      BASE="origin/$b"; break
-    fi
-  done
-  if [ -n "$BASE" ]; then
-    COUNT=$(git rev-list --count "$BASE..HEAD" 2>/dev/null || echo 0)
-    if [ "$COUNT" -gt 1 ]; then
-      echo "⚠️  branch-guard: Branch has $COUNT commits ahead of $BASE."
-      echo "   One focused commit per feature branch keeps history clean."
-      echo "   To squash: git rebase -i $BASE"
-      echo "   (Proceeding — this is a warning, not a block.)"
-      echo ""
-    fi
-  fi
 
-  # 4b. Run local CI checks — same checks the remote workflow runs
-  CI_CMD=""
-  CI_LABEL=""
+def current_branch(repo_dir):
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return out.stdout.strip() if out.returncode == 0 else ""
 
-  # Detect the project's CI check command
-  if [ -f "Makefile" ] && grep -q '^check:' Makefile 2>/dev/null; then
-    CI_CMD="make check"
-    CI_LABEL="make check"
-  elif [ -f "package.json" ]; then
-    HAS_LINT=$(python3 -c "
-import json, sys
-s = json.load(open('package.json')).get('scripts', {})
-print('1' if 'lint' in s or 'typecheck' in s else '')
-" 2>/dev/null)
-    if [ "$HAS_LINT" = "1" ]; then
-      CI_CMD="npm run lint && npm run typecheck"
-      CI_LABEL="npm run lint + typecheck"
-    fi
-  elif [ -f "pyproject.toml" ] && command -v ruff >/dev/null 2>&1; then
-    CI_CMD="ruff check . && ruff format --check ."
-    CI_LABEL="ruff check + format --check"
-  fi
 
-  if [ -n "$CI_CMD" ]; then
-    echo "🔍 branch-guard: Running CI checks before push ($CI_LABEL)…"
-    echo ""
-    if eval "$CI_CMD"; then
-      echo ""
-      echo "✅ branch-guard: All checks passed — proceeding with push."
-    else
-      echo ""
-      echo "❌ branch-guard: CI checks FAILED. Fix the errors above before pushing."
-      echo "   The remote workflow will fail with the same errors."
-      exit 2
-    fi
-  fi
+def is_force(args):
+    for arg in args:
+        if arg in ("--force", "--mirror"):
+            return True
+        if re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", arg):
+            return True
+    positionals = [a for a in args if not a.startswith("-")]
+    return any(ref.startswith("+") for ref in positionals[1:])
 
-fi
 
-exit 0
+def pushed_branches(args, repo_dir):
+    """Destination branch names of a push; the current branch if none are named."""
+    positionals = [a for a in args if not a.startswith("-")]
+    refspecs = positionals[1:]
+    if not refspecs:
+        return [current_branch(repo_dir)]
+    branches = []
+    for ref in refspecs:
+        dest = ref.lstrip("+").split(":")[-1]
+        dest = dest[len("refs/heads/"):] if dest.startswith("refs/heads/") else dest
+        branches.append(current_branch(repo_dir) if dest == "HEAD" else dest)
+    return branches
+
+
+def check_command(root):
+    """The project's local check command as a shell string, or None."""
+    makefile = os.path.join(root, "Makefile")
+    if os.path.isfile(makefile):
+        with open(makefile, encoding="utf-8", errors="replace") as fh:
+            if re.search(r"^check:", fh.read(), re.MULTILINE):
+                return "make check"
+    package_json = os.path.join(root, "package.json")
+    if os.path.isfile(package_json):
+        try:
+            with open(package_json, encoding="utf-8") as fh:
+                scripts = json.load(fh).get("scripts") or {}
+        except (OSError, ValueError):
+            scripts = {}
+        present = [name for name in ("lint", "typecheck") if name in scripts]
+        if present:
+            return " && ".join(f"npm run --silent {name}" for name in present)
+        return None
+    if os.path.isfile(os.path.join(root, "pyproject.toml")) and shutil.which("ruff"):
+        return "ruff check . && ruff format --check ."
+    return None
+
+
+def run_checks(root):
+    cmd = check_command(root)
+    if not cmd:
+        return
+    try:
+        result = subprocess.run(
+            cmd, shell=True, cwd=root, capture_output=True, text=True,
+            timeout=CHECK_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        block(f"pre-push checks (`{cmd}`) timed out after {CHECK_TIMEOUT_SECONDS}s.")
+    if result.returncode != 0:
+        tail = "\n".join((result.stdout + result.stderr).strip().splitlines()[-TAIL_LINES:])
+        block(f"pre-push checks failed (`{cmd}`). Fix these before pushing:\n{tail}")
+
+
+try:
+    data = json.loads(os.environ.get("HOOK_INPUT", ""))
+except ValueError:
+    sys.exit(0)
+
+command = (data.get("tool_input") or {}).get("command") or ""
+cwd = data.get("cwd") or os.getcwd()
+project_root = os.environ.get("CLAUDE_PROJECT_DIR") or cwd
+pushes = []
+
+for repo_dir, sub, args in git_invocations(command):
+    repo = os.path.join(cwd, repo_dir) if repo_dir else cwd
+    if sub == "commit":
+        branch = current_branch(repo)
+        if branch in PROTECTED:
+            block(f"blocked commit directly on '{branch}'. Create a feature branch first "
+                  "(git switch -c feat/your-change).")
+    elif sub == "push":
+        if is_force(args):
+            block("blocked force push. Use --force-with-lease only if you really need to "
+                  "rewrite remote history, and explain why to the user.")
+        for branch in pushed_branches(args, repo):
+            if branch in PROTECTED:
+                block(f"blocked direct push to '{branch}'. Push a feature branch and open a PR instead.")
+        pushes.append(repo)
+
+if pushes:
+    run_checks(project_root)
+
+sys.exit(0)
+PY
