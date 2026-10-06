@@ -14,3 +14,6 @@ __pycache__/
 # Local self-hosted Firecrawl data/volumes (if any are bind-mounted)
 **/firecrawl-data/
 **/.firecrawl/
+
+# Claude Code agent worktrees
+.claude/worktrees/
