@@ -30,7 +30,7 @@ scrapable — it's a starting set of *where to look*.
 Other KSA options worth adding by hand if relevant: **Carrefour KSA**
 (`carrefourksa.com`), **BinDawood / Danube** (groceries), **Saco**
 (`saco.sa`, hardware/home), **Golden Scent** (`goldenscent.com`, beauty),
-**Whites / Xcite**, **Trendyol** (`trendyol.com`).
+**Trendyol** (`trendyol.com`). (Xcite is Kuwait-based, not KSA; Wadi has shut down.)
 
 ## Global (`SHOP_SCOPE=global`)
 
@@ -44,8 +44,14 @@ Other KSA options worth adding by hand if relevant: **Carrefour KSA**
 | Newegg | `newegg.com` | PC/components; marketplace sellers vary. |
 | B&H | `bhphotovideo.com` | Photo/AV/electronics; strong reputation. |
 
+These starter lists are examples, not a limit: shop-scout works in any region.
+Add your own country's retailers by domain (Saudi is just the bundled example).
 Region-specific giants to add as needed: **Amazon.ae / .co.uk / .de**,
-**Flipkart** (India), **Jumia** (Africa), **MediaMarkt** (EU).
+**Flipkart** (India), **Jumia** (Africa), **MediaMarkt** (EU), **Xcite** (Kuwait).
+
+Domains were spot-checked 2026-10 (reachable); some sites (B&H, Trendyol) return
+403 to plain fetchers — that's a bot wall, not a dead store. Store-specific path
+hints like `/saudi-en` change over time; rely on the bare domain.
 
 ## Maintaining this file
 

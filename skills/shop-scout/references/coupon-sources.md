@@ -21,8 +21,12 @@ proven — always end with **"verify at checkout."**
 Slickdeals (`slickdeals.net`), Wethrift (`wethrift.com`), CouponBirds.
 
 **Saudi / MENA:** Almowafir (`almowafir.com`), Picodi (`picodi.com/sa`),
-CouponKSA (`couponksa.com`), Wadi/Discountcode sites, Telegram coupon channels
+Telegram coupon channels
 (very common in KSA — see below).
+
+Many aggregators (RetailMeNot, Slickdeals, Wethrift, CouponBirds) return 403 to
+plain fetchers; cite the search snippet instead of dropping the source. For other
+regions, search `<country> coupon codes` and add the local aggregators here.
 
 ## Social media patterns
 

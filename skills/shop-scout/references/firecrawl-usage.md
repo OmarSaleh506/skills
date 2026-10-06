@@ -1,8 +1,9 @@
 # Firecrawl usage (for shop-scout)
 
 Distilled from Firecrawl's official agent guide
-(`https://www.firecrawl.dev/agent-onboarding/SKILL.md`) and verified against the
-live v2 API. Firecrawl gives agents reliable web search + clean extraction on
+(`https://www.firecrawl.dev/agent-onboarding/SKILL.md`) and checked against the
+v2 API reference (`https://docs.firecrawl.dev/api-reference/endpoint/scrape`,
+`.../search`) in 2026-10. Firecrawl gives agents reliable web search + clean extraction on
 JS-heavy stores where a naive fetch fails.
 
 ## The one workflow that matters: search → scrape
@@ -17,7 +18,7 @@ Step 2 = `/scrape` the top listings. Don't scrape blind; don't crawl whole sites
 |---|---|---|
 | Discover sellers/listings for a product | `POST /search` | Returns ranked web results. Optionally scrape them inline. |
 | Read a known listing → clean markdown / fields | `POST /scrape` | The workhorse for price/discount extraction. |
-| Page needs clicks / login / "load more" before content appears | `POST /interact` | Browser actions. Rarely needed for shopping; avoid unless a price truly hides behind interaction. |
+| Page needs clicks / login / "load more" before content appears | `POST /v2/scrape/{scrapeId}/interact` (after a scrape) | Browser actions. Rarely needed for shopping; avoid unless a price truly hides behind interaction. |
 | Enumerate a site's URLs / bulk pull | `POST /map`, `POST /crawl` | Require an API key (cloud). Overkill — and token-expensive — for shop-scout. Don't use by default. |
 
 Self-hosted instances don't offer the cloud-only `/agent` and `/browser`
@@ -50,6 +51,8 @@ Request body:
   sharpen (e.g. `site:noon.com OR site:amazon.sa airpods pro`).
 - `limit` — keep small (≈ `SHOP_MAX_LISTINGS`); each result can cost credits on cloud.
 - `sources` — `["web"]` for shopping. (`news`, `images` also exist.)
+- `country` / `location` — ISO country code (default `US`) or a place name to bias
+  results to a region. `query` max 500 chars; `limit` max 100.
 - *(optional)* `scrapeOptions` — if present, Firecrawl scrapes every result inline.
   Powerful but multiplies cost; prefer to search first, then scrape only the
   finalists.
@@ -90,6 +93,9 @@ cloud):
 - `location.country` — render as if from that region so you get local pricing/currency
   (`SA` for Saudi, `US` for global, etc.).
 - `waitFor` — ms to wait for JS to settle on slow stores (use sparingly; it adds latency).
+- `maxAge` — **set to `0` for prices.** Firecrawl serves a cached copy up to 2 days
+  old by default (`172800000` ms), which can show yesterday's price or stock. The
+  bundled wrapper sends `maxAge: 0` (override with `FIRECRAWL_MAX_AGE_MS`).
 
 Verified response shape:
 
@@ -126,6 +132,21 @@ configured, so the `json` format returns **HTTP 500**. Two options:
    the LLM). Recommended — keeps self-host zero-config.
 2. Set `OPENAI_API_KEY` (and `MODEL_NAME`) in the self-host compose to enable the
    `json` format there too. See `self-host-firecrawl/README.md`.
+
+## Errors and rate limits
+
+| HTTP | Meaning | What to do |
+|---|---|---|
+| 400 | Invalid request body | Fix the params; don't retry unchanged. |
+| 401 | Missing/bad key (cloud) | Check `FIRECRAWL_API_KEY`. |
+| 402 | Cloud credits exhausted | Stop; tell the user, fall back to honest summary. |
+| 429 | Rate limited | Back off and retry; lower `SHOP_PARALLEL`. |
+| 5xx | Server/transient | Retry once or twice. |
+
+`firecrawl.sh` retries 429/5xx/network errors (`FIRECRAWL_RETRIES`, default 2)
+with backoff, then exits `3` with the reason on stderr and the body, if any, on
+stdout. A page that scrapes with `success: true` but shows no price (bot wall,
+login) is a *missing price* for the data-floor gate, not an error.
 
 ## curl quick reference
 
