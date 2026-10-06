@@ -5,9 +5,9 @@ Assemble the self-contained, offline, plain-language companion HTML.
 You (the model) write ONLY a body *fragment* — the <header>, <section>s, and
 <footer>, with Mermaid diagrams as `<pre class="mermaid">...</pre>` blocks. This
 script wraps that fragment in the bundled CSS shell and inlines the pinned Mermaid
-bundle, producing one ~3.3MB file that opens by double-click with no network.
+bundle, producing one ~5.5MB file that opens by double-click with no network.
 
-Why a script instead of writing the HTML directly: the Mermaid bundle is ~3.3MB
+Why a script instead of writing the HTML directly: the Mermaid bundle is ~5.5MB
 of minified JS — far too large to emit by hand. Inlining it is a hard requirement
 (the file must work fully offline), so assembly is delegated here.
 

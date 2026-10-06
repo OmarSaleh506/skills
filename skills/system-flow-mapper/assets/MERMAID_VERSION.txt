@@ -1,3 +1,8 @@
-mermaid@10.9.3
-source: https://registry.npmjs.org/mermaid/-/mermaid-10.9.3.tgz (dist/mermaid.min.js)
-format: UMD (exposes global `mermaid`), works offline with mermaid.initialize({startOnLoad:true})
+mermaid@12.1.0
+license: MIT (https://github.com/mermaid-js/mermaid/blob/develop/LICENSE)
+source: https://cdn.jsdelivr.net/npm/mermaid@12.1.0/dist/mermaid.min.js
+        (the dist/mermaid.min.js of the npm package https://registry.npmjs.org/mermaid/-/mermaid-12.1.0.tgz)
+sha256: 6484afc32872a3aa16cac9a76ba1816a1ed4cc870a6593cc2e17757750f518b2  mermaid.min.js
+format: browser bundle (exposes global `mermaid`), works offline
+status: vendored third-party library, unmodified. Minified for size, not obfuscated.
+verify: shasum -a 256 assets/mermaid.min.js

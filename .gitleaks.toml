@@ -1,0 +1,8 @@
+# Extend the default gitleaks rules; only exempt vendored, unmodified
+# third-party bundles whose minified identifiers trip generic-api-key.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vendored upstream mermaid build, pinned by sha256 in assets/MERMAID_VERSION.txt"
+paths = ['''skills/system-flow-mapper/assets/mermaid\.min\.js''']

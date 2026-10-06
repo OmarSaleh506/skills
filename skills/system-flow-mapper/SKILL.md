@@ -242,7 +242,7 @@ In Phase 2 (incremental run):
 - **Clean sections:** read existing fragment files from `${DOCS_DIR}/fragments/` — do
   **not** re-read their source files.
 - Rebuild both HTML files in full from all fragments via `build_html.py` — never
-  surgically edit the 3.3 MB assembled HTML.
+  surgically edit the ~5.5 MB assembled HTML.
 
 ---
 
@@ -276,7 +276,7 @@ the doc and proceed.)
 
 ---
 
-## Phase 2 — Build the two deliverables
+## Phase 2 — Build the three deliverables
 
 Open the routed reference file and follow it — it defines the section structure,
 the required diagrams, and the slice axis for that project type. The references
@@ -357,8 +357,8 @@ python3 $SKILL_DIR/scripts/build_html.py \
   --shell   $SKILL_DIR/assets/html-technical-shell.html
 ```
 
-Do **not** try to write either HTML by hand — the Mermaid bundle is ~3.3MB.
-Both resulting files are ~3.3MB by design (the price of true offline capability).
+Do **not** try to write either HTML by hand — the Mermaid bundle is ~5.5MB.
+Both resulting files are ~5.5MB by design (the price of true offline capability).
 
 ---
 
@@ -401,6 +401,18 @@ Both resulting files are ~3.3MB by design (the price of true offline capability)
    ER diagrams, tech-debt lists) should have `"paths": []` so they always rebuild
    when any sibling section rebuilds. Section order in the array must match the order
    of the actual document sections.
+
+---
+
+## Bundled third-party code
+
+`assets/mermaid.min.js` is the **unmodified, official minified build of Mermaid**
+(MIT license, https://github.com/mermaid-js/mermaid), vendored so the HTML
+deliverables work offline. Version, upstream URL and SHA-256 are recorded in
+`assets/MERMAID_VERSION.txt`; verify with `shasum -a 256 assets/mermaid.min.js`.
+It is minified for size, not obfuscated, and is only ever inlined into the generated
+HTML by `scripts/build_html.py`. To upgrade, download the same `dist/mermaid.min.js`
+from jsDelivr/npm and update `MERMAID_VERSION.txt`.
 
 ---
 
