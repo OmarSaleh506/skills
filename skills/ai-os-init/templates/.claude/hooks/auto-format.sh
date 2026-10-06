@@ -1,38 +1,51 @@
 #!/usr/bin/env bash
-# PostToolUse — fires after Edit/Write/MultiEdit
-# Silently runs the project's formatter on the modified file.
-# Never blocks, never fails loudly — formatting is best-effort.
+# auto-format — PostToolUse hook (matcher: Edit|Write|MultiEdit)
+#
+# Runs the project's formatter on the file Claude just edited. Best-effort:
+# never blocks, never prints, skips silently when no formatter is installed.
+# Prefers a project-local formatter (node_modules/.bin) over a global one.
 
-INPUT=$(cat)
-FILE=$(printf '%s' "$INPUT" | python3 -c "
+command -v python3 >/dev/null 2>&1 || exit 0
+
+FILE=$(python3 -c '
 import json, sys
-d = json.load(sys.stdin)
-print((d.get('tool_input') or {}).get('file_path', ''))
-" 2>/dev/null)
+try:
+    print((json.load(sys.stdin).get("tool_input") or {}).get("file_path", ""))
+except ValueError:
+    pass
+' 2>/dev/null)
 
 [ -z "$FILE" ] && exit 0
-[ ! -f "$FILE" ] && exit 0
+[ -f "$FILE" ] || exit 0
 
-EXT="${FILE##*.}"
+ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
 
-case "$EXT" in
+# Print the first available tool: project-local node binary, then PATH.
+find_tool() {
+  if [ -x "$ROOT/node_modules/.bin/$1" ]; then
+    printf '%s\n' "$ROOT/node_modules/.bin/$1"
+  elif command -v "$1" >/dev/null 2>&1; then
+    command -v "$1"
+  fi
+}
+
+case "${FILE##*.}" in
   py)
     if command -v ruff >/dev/null 2>&1; then
-      ruff format --quiet "$FILE" 2>/dev/null
+      ruff format --quiet "$FILE" >/dev/null 2>&1
     elif command -v black >/dev/null 2>&1; then
-      black --quiet "$FILE" 2>/dev/null
+      black --quiet "$FILE" >/dev/null 2>&1
     fi
     ;;
-  js|jsx|ts|tsx|json|css|scss|html|yaml|yml|md)
-    if command -v prettier >/dev/null 2>&1; then
-      prettier --write --log-level silent "$FILE" 2>/dev/null
-    fi
+  js|jsx|mjs|cjs|ts|tsx|json|css|scss|html|vue|yaml|yml|md)
+    PRETTIER=$(find_tool prettier)
+    [ -n "$PRETTIER" ] && "$PRETTIER" --write "$FILE" >/dev/null 2>&1
     ;;
   go)
-    command -v gofmt >/dev/null 2>&1 && gofmt -w "$FILE" 2>/dev/null
+    command -v gofmt >/dev/null 2>&1 && gofmt -w "$FILE" >/dev/null 2>&1
     ;;
   rs)
-    command -v rustfmt >/dev/null 2>&1 && rustfmt --quiet "$FILE" 2>/dev/null
+    command -v rustfmt >/dev/null 2>&1 && rustfmt "$FILE" >/dev/null 2>&1
     ;;
 esac
 
