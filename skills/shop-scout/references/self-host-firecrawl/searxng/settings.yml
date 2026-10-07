@@ -1,0 +1,10 @@
+# Minimal SearXNG config for shop-scout's self-hosted Firecrawl search.
+# Firecrawl queries SearXNG's JSON API, which is off by default.
+use_default_settings: true
+server:
+  limiter: false
+  image_proxy: false
+search:
+  formats:
+    - html
+    - json

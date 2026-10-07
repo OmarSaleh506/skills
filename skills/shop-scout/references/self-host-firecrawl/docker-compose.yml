@@ -43,8 +43,21 @@ x-common-env: &common-env
   # agent extracts price/discount/stock itself (the default shop-scout path).
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   MODEL_NAME: ${MODEL_NAME:-}
+  # Search goes through the bundled SearXNG (several engines) instead of
+  # Firecrawl's DuckDuckGo fallback, which anti-bot-blocks after a few queries.
+  SEARXNG_ENDPOINT: http://searxng:8080
 
 services:
+  searxng:
+    image: searxng/searxng@sha256:76b0bf285aca014c7191fc4d9234c4bfb358624ac33d8883833d496c059ec072  # searxng:latest
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+      # Local-only instance; override with a random value if you expose it.
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-shop-scout-local-only}
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    networks: [backend]
+
   playwright-service:
     image: ghcr.io/firecrawl/playwright-service@sha256:6359b0d9070f27400b4a9b615509be06919e40121fc1fdc42d4efeddf02653d2
     environment:
@@ -89,7 +102,7 @@ services:
       rabbitmq: { condition: service_healthy }
       nuq-postgres: { condition: service_started }
     ports:
-      - "${PORT:-3002}:3002"
+      - "127.0.0.1:${PORT:-3002}:3002"
     networks: [backend]
 
   # Extra horizontal worker replicas. No container_name => safe to scale.
