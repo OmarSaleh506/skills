@@ -6,8 +6,8 @@ shop-scout prefers.
 
 > **⚠️ Security — localhost only.** This stack ships local-dev defaults (no API
 > auth, default Postgres password, `BULL_AUTH_KEY=CHANGEME`). Run it on your own
-> machine only — do **not** bind port 3002 (or any service) to a public network
-> or `0.0.0.0` on an internet-facing host.
+> machine only. The compose file publishes the API on `127.0.0.1` only; do
+> **not** change that to `0.0.0.0` or expose any service on an internet-facing host.
 
 ## What you get
 
@@ -18,6 +18,9 @@ A standalone stack (all **prebuilt images**, nothing to build from source):
   concurrency to use).
 - **redis**, **rabbitmq**, **nuq-postgres** — the queue/state backends Firecrawl needs.
 - **playwright-service** — headless browser that renders JS pages.
+- **searxng** — metasearch for `/v2/search`. Without it, self-host Firecrawl falls
+  back to DuckDuckGo, which anti-bot-blocks after a few queries and returns empty
+  results. Config: `searxng/settings.yml` (enables the JSON API).
 
 ## Requirements
 
@@ -30,7 +33,7 @@ A standalone stack (all **prebuilt images**, nothing to build from source):
 ```bash
 cd references/self-host-firecrawl     # the folder this README is in
 docker compose up -d                  # first run pulls images (a few minutes)
-docker compose ps                     # api, 2 workers, redis, rabbitmq, postgres, playwright
+docker compose ps                     # api, 2 workers, redis, rabbitmq, postgres, playwright, searxng
 ```
 
 Wait until the API answers (the harness starts its workers a few seconds after

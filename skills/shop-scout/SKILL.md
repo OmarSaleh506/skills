@@ -218,6 +218,12 @@ aggregators**, **the store's own** first-order / newsletter / app promos, and
 **social media** (X/Twitter, Instagram bios, regional Telegram channels). Sources
 and search patterns are in `references/coupon-sources.md`.
 
+**Check the pages you already scraped first.** Product pages often print their
+own promos — bank/card offers ("Enter code X at checkout"), coupon checkboxes,
+bundle deals. Pull those out of the Step 1 markdown before searching elsewhere:
+they're the most reliable codes you'll find. Card- or bank-specific offers are
+**❔ unknown** unless the user said they hold that card.
+
 **Classify every code before it can touch effective price** — this is what stops
 the winner from flipping on a coupon you can't actually use:
 
@@ -270,8 +276,10 @@ that stops shop-scout from ever printing a fake, made-up table:
   fiction. (This was the #1 reason past runs looked "stupid.")
 - **Firecrawl backend (self-host or cloud):** a price comparison is only
   meaningful if you actually read prices. Count the shortlisted listings from
-  Step 1: if **half or more** have **no real price** (blocked, `n/a`, or never
-  loaded), degrade to the honest summary. Otherwise, print the **comparison
+  Step 1 — a store where search found **no listing** for the product isn't a
+  listing, so leave it out of the count (mention it under the table instead). If
+  **half or more** of the real listings have **no real price** (blocked, `n/a`, or
+  never loaded), degrade to the honest summary. Otherwise, print the **comparison
   table**. (Stock and shipping *enrich* the table but don't gate it — a missing
   stock value just becomes `n/a` in its column; only missing **prices** sink the
   table, because price is the whole comparison.)
@@ -293,7 +301,11 @@ prices, no fabricated verdicts:
 - **Seller-safety notes** — only verdicts you can back with a source link; skip
   the rest.
 
-Then append the upgrade block **verbatim**. This is the one place it's defined —
+On the **built-in** backend, append the upgrade block below **verbatim**. On a
+**Firecrawl** backend that still fell short, skip it — Firecrawl is already on —
+and instead name which stores blocked the scraper, with their links, so the user
+can open them in a normal browser (cloud Firecrawl's `proxy: "stealth"` can get
+past some anti-bot walls that block self-host). Otherwise append it. This is the one place it's defined —
 reuse it wherever the honest summary is shown:
 
 > **⚡ Want real price comparison? Enable Firecrawl** — built-in fetch is blocked
@@ -392,7 +404,8 @@ from a hope into an enforced step:
 - [ ] **No invention** — every price, discount, stock value, **shipping**, trust
       verdict, and coupon code traces to something you actually read. Can't source
       it → it's not in the output (and **unsourced shipping is `n/a`, never assumed
-      free** — it feeds effective price).
+      free** — it feeds effective price). This covers closing advice too: no
+      "store X is usually cheaper" claims you didn't read this run.
 - [ ] **Best buy is buyable** — the recommended row is **in stock**; an
       out-of-stock listing never wins (note it as "cheaper if restocked" instead).
 - [ ] **Same product** — every compared row is the same model/variant; a different
