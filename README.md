@@ -51,35 +51,22 @@ it into your agent's skills directory, or point the agent at its `SKILL.md`.
 
 ## See it work — shop-scout
 
-A **real** shop-scout run on self-hosted Firecrawl (prices as observed 2026-06-29).
-Rows hold a fixed priority order, so two runs of the same query match. The winner is
-the cheapest **in-stock** listing — the two cheaper rows are out of stock, so
-shop-scout won't recommend them — and coupons it can't verify are labelled, never
-silently folded into the price:
+![shop-scout live run](docs/demo/shop-scout.gif)
 
-```text
-### Logitech MX Master 3S — backend: self-host
-| Store                 | Price      | Disc. | Effective  | Stock / Shipping      | Coupon          | Seller trust                            | Buy  |
-|-----------------------|------------|-------|------------|-----------------------|-----------------|-----------------------------------------|------|
-| Noon (eKart)          | SAR 449.00 | n/a   | SAR 449.00 | Low stock (5) · free  | none applicable | ✅ Trusted — eKart 4.8★/87% (listing)   | open |
-| Amazon.sa (ALOTHAIBI) | SAR 499.00 | -8%   | SAR 499.00 | In stock · Amazon-FBA | none applicable | ⚠️ Mixed — 3rd-party, no rating (seller)| open |
-| extra                 | SAR 299.00 | -47%  | SAR 299.00 | Out of stock          | none applicable | ✅ Trusted — eXtra 4.6★/1523 (listing)  | open |
-| Jarir                 | SAR 379.00 | n/a   | SAR 379.00 | Out of stock          | none found      | ⚠️ Mixed — only a product rating read   | open |
+A **real, unedited** run (2026-10-07) on the bundled self-hosted Firecrawl. Watch
+what it *doesn't* do:
+- **No fake prices.** Noon blocked the scraper, so Noon is listed as a gap, not
+  given a guessed price.
+- **A bank-only code isn't counted.** `AJB20` was read off the Amazon listing.
+  It's marked ❔ unknown because it needs a specific card, so it isn't folded into
+  the effective price.
+- **Shipping isn't assumed.** The cheapest shelf price (Microless) has unknown
+  shipping and weaker seller trust, so it doesn't win by default.
 
-Best buy (cheapest IN-STOCK): Noon — SAR 449.00.
-extra (SAR 299) and Jarir (SAR 379) are cheaper but OUT OF STOCK, so they can't win;
-Amazon.sa is in stock but pricier. Aggregator coupon codes were unverifiable, so none
-were applied. (Run again and the same four rows come back in the same order.)
-```
-
-Without a scraping backend, shop-scout does **not** invent a table — it returns an
-honest research summary (real links + any prices it could actually read) plus a
+Without a scraping backend, shop-scout does **not** invent a table. It returns an
+honest research summary (real links plus any prices it could actually read) and a
 one-step guide to enabling Firecrawl. See the
 [skill](./skills/shop-scout/SKILL.md) for the backend tiers.
-
-> _Captured from a live self-host run; links and a few cells shortened for width.
-> This is the locked output contract the skill produces — a recorded GIF/screencast
-> is a planned nice-to-have._
 
 ## What `ai-os-init` scaffolds
 

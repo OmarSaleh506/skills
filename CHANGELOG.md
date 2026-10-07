@@ -3,6 +3,26 @@
 All notable changes to the `omar-skills` plugin. Versions match
 `.claude-plugin/plugin.json`.
 
+## 1.5.1 — 2026-10-07
+
+Fixes from a live end-to-end shop-scout test on the bundled self-hosted Firecrawl.
+
+### shop-scout
+- Self-host stack now bundles SearXNG for `/v2/search`. Without it Firecrawl
+  fell back to DuckDuckGo, which anti-bot-blocks after a few queries and
+  silently returned zero results.
+- Firecrawl API is published on `127.0.0.1` only by default.
+- Data-floor gate no longer counts stores with no listing for the product, which
+  wrongly pushed runs into degraded mode.
+- On a Firecrawl backend, degraded mode names the blocked stores instead of
+  telling the user to enable Firecrawl.
+- Coupon step first reads promo and bank codes printed on the scraped product
+  pages.
+- The no-invention rule now covers closing advice too.
+
+### Repo
+- README demo is now a GIF of a real run (`docs/demo/shop-scout.gif`).
+
 ## 1.5.0 — 2026-10-07
 
 ### sqlalchemy-patterns
