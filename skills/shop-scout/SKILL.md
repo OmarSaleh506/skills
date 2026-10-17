@@ -36,6 +36,10 @@ named however your runtime provides them:
 - **run N tasks concurrently** — sub-agents where your runtime has them,
   otherwise just sequential or concurrent calls.
 
+If your runtime lacks search/fetch tools, an optional
+[Parallel Search MCP setup](references/parallel-search.md) can supply them for
+the built-in research path. It preserves the backend tiers and output gates below.
+
 Quality depends heavily on *how* you fetch pages. Major retailers (Amazon.sa,
 Noon, …) render prices with JavaScript and block naive fetchers. So shop-scout
 prefers a real scraping backend (Firecrawl) and falls back to plain fetch only
@@ -452,6 +456,8 @@ one. Don't use this to bypass paywalls, logins, or anti-bot measures.
 
 ## Reference files
 
+- `references/parallel-search.md` — optional keyless MCP search/fetch setup for
+  the built-in research path; preserves the summary-only output gate.
 - `references/firecrawl-usage.md` — how to call Firecrawl (search/scrape/interact,
   params, response shapes, cloud vs self-host). **Read before your first call.**
 - `references/buying-notes.md` — cross-border costs (currency, VAT, duty,

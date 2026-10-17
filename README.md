@@ -68,6 +68,10 @@ honest research summary (real links plus any prices it could actually read) and 
 one-step guide to enabling Firecrawl. See the
 [skill](./skills/shop-scout/SKILL.md) for the backend tiers.
 
+Need search/fetch tools in your agent? The optional
+[Parallel Search MCP setup](./skills/shop-scout/references/parallel-search.md)
+provides them without an API key for shop-scout's built-in research-summary path.
+
 ## What `ai-os-init` scaffolds
 
 Non-destructive (adds only what's missing — existing `settings.json` hooks are merged, never overwritten) and safe to re-run. Preview first with `--dry-run`:

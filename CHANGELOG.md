@@ -3,6 +3,13 @@
 All notable changes to the `omar-skills` plugin. Versions match
 `.claude-plugin/plugin.json`.
 
+## 1.5.2 — 2026-10-17
+
+### shop-scout
+- Document optional Parallel Search MCP setup for agents without search/fetch
+  tools, with pipeline mapping and a research-summary example. Backend selection
+  and the built-in summary-only output gate are unchanged.
+
 ## 1.5.1 — 2026-10-07
 
 Fixes from a live end-to-end shop-scout test on the bundled self-hosted Firecrawl.
